@@ -37,7 +37,7 @@ export function ExtraInfoListEditor({ items, onChange }: ExtraInfoListEditorProp
           onClick={addItem}
           disabled={items.length >= EXTRA_INFO_MAX_ITEMS}
         >
-          + Добавить
+          Добавить запись
         </button>
       </div>
 

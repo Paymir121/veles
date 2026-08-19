@@ -30,6 +30,15 @@ def _translate_django_error(exc: DjangoValidationError):
     return exc.messages
 
 
+class BurialPlaceBriefSerializer(serializers.ModelSerializer):
+    """Place without its nested persons -- safe to embed inside a person (the
+    full BurialPlaceSerializer nests persons, which would recurse)."""
+
+    class Meta:
+        model = BurialPlace
+        fields = ["id", "name", "city", "latitude", "longitude"]
+
+
 class PersonListSerializer(serializers.ModelSerializer):
     """Lightweight Person representation for nesting (BurialPlace.persons,
     /api/search/ results) -- avoids shipping extra_info/notes everywhere."""
@@ -46,10 +55,26 @@ class PersonListSerializer(serializers.ModelSerializer):
             "status",
             "birth_date",
             "birth_date_text",
+            "birth_place",
             "death_date",
             "death_date_text",
             "photo",
         ]
+
+
+class PersonSearchSerializer(PersonListSerializer):
+    """Search hit: adds the person's burial place inline so the map can fly to
+    a person straight from a search result, without a second request.
+
+    Deliberately named `burial_place_detail`, not `burial_place`: the latter is
+    a plain id everywhere else, and one key with two shapes across endpoints is
+    exactly the kind of thing clients get wrong.
+    """
+
+    burial_place_detail = BurialPlaceBriefSerializer(source="burial_place", read_only=True)
+
+    class Meta(PersonListSerializer.Meta):
+        fields = PersonListSerializer.Meta.fields + ["burial_place_detail"]
 
 
 class PersonSerializer(serializers.ModelSerializer):

@@ -3,10 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonForm } from './PersonForm';
 
-// PersonForm pulls in TanStack Query hooks (father/mother picker, burial
-// place search + inline create) that would otherwise hit the real axios
-// client. Mocking './hooks' keeps this a pure component test with no
-// network/QueryClientProvider setup required.
 vi.mock('./hooks', () => ({
   usePerson: vi.fn(() => ({ data: undefined })),
   usePersons: vi.fn(() => ({ data: [] })),
@@ -20,12 +16,17 @@ vi.mock('@/shared/maps/yandexMapsSetup', async (importOriginal) => {
   return { ...actual, hasYandexMapsApiKey: () => false };
 });
 
+async function goToStep(user: ReturnType<typeof userEvent.setup>, stepName: string) {
+  await user.click(screen.getByRole('button', { name: new RegExp(stepName) }));
+}
+
 describe('PersonForm - status-driven conditional fields', () => {
   it('hides death/burial fields for the default "alive" status', () => {
     render(<PersonForm onSubmit={vi.fn()} />);
 
     expect(screen.queryByLabelText('Дата смерти')).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Место захоронения' })).not.toBeInTheDocument();
+    // Burial step should not appear in wizard indicator
+    expect(screen.queryByRole('button', { name: /Захоронение/ })).not.toBeInTheDocument();
   });
 
   it('shows death/burial fields once status is switched to "deceased"', async () => {
@@ -34,8 +35,14 @@ describe('PersonForm - status-driven conditional fields', () => {
 
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
 
+    // Death date appears on basics step
     expect(screen.getByLabelText('Дата смерти')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Место захоронения' })).toBeInTheDocument();
+    // Burial step appears in wizard indicator
+    expect(screen.getByRole('button', { name: /Захоронение/ })).toBeInTheDocument();
+
+    // Navigate to burial step
+    await goToStep(user, 'Захоронение');
+    expect(screen.getByLabelText('Место захоронения')).toBeInTheDocument();
   });
 
   it('clears (not just hides) burial fields when switching back to alive', async () => {
@@ -43,17 +50,19 @@ describe('PersonForm - status-driven conditional fields', () => {
     render(<PersonForm onSubmit={vi.fn()} />);
 
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
+    await goToStep(user, 'Захоронение');
     await user.type(screen.getByLabelText('Детали участка'), 'участок 5, ряд 3');
     expect(screen.getByLabelText('Детали участка')).toHaveValue('участок 5, ряд 3');
 
+    // Switch back to basics and change status to alive
+    await goToStep(user, 'Основное');
     await user.selectOptions(screen.getByLabelText('Статус'), 'alive');
-    expect(screen.queryByLabelText('Детали участка')).not.toBeInTheDocument();
+    // Burial step disappears
+    expect(screen.queryByRole('button', { name: /Захоронение/ })).not.toBeInTheDocument();
 
-    // Switching back to deceased should show an EMPTY field, proving the
-    // underlying value was actually cleared in state, not merely hidden -
-    // this matters because the API layer relies on the cleared value being
-    // sent explicitly to wipe stale burial data server-side on an edit.
+    // Switch to deceased again and check the field is empty
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
+    await goToStep(user, 'Захоронение');
     expect(screen.getByLabelText('Детали участка')).toHaveValue('');
   });
 });
@@ -64,8 +73,8 @@ describe('PersonForm - optional photo submission', () => {
     const user = userEvent.setup();
     render(<PersonForm onSubmit={handleSubmit} />);
 
-    await user.type(screen.getByLabelText('Фамилия'), 'Иванов');
-    await user.type(screen.getByLabelText('Имя'), 'Пётр');
+    await user.type(screen.getByLabelText('Фамилия *'), 'Иванов');
+    await user.type(screen.getByLabelText('Имя *'), 'Пётр');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);
@@ -75,8 +84,12 @@ describe('PersonForm - optional photo submission', () => {
     expect(files).toEqual({ photo: null, gravePhoto: null });
   });
 
-  it('renders both photo inputs as plain optional file inputs', () => {
+  it('renders both photo inputs as plain optional file inputs', async () => {
+    const user = userEvent.setup();
     render(<PersonForm onSubmit={vi.fn()} />);
+
+    // Navigate to extras step where photos live
+    await goToStep(user, 'Фото');
     const photoInput = screen.getByLabelText('Портрет (необязательно)') as HTMLInputElement;
     expect(photoInput.type).toBe('file');
     expect(photoInput.required).toBe(false);
@@ -89,7 +102,8 @@ describe('PersonForm - burial place create without a maps key', () => {
     render(<PersonForm onSubmit={vi.fn()} />);
 
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
-    await user.click(screen.getByRole('button', { name: 'Добавить новое место' }));
+    await goToStep(user, 'Захоронение');
+    await user.click(screen.getByRole('button', { name: /Добавить новое место/ }));
 
     expect(
       screen.getByText(/Карта недоступна \(не задан ключ Яндекс\.Карт\)/i),

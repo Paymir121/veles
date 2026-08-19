@@ -1,4 +1,3 @@
-from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,11 +10,11 @@ from logger.logger import py_logger
 from .models import BurialPlace, Person, Union
 from .serializers import (
     BurialPlaceSerializer,
-    PersonListSerializer,
+    PersonSearchSerializer,
     PersonSerializer,
     UnionSerializer,
 )
-from .services import serialize_tree
+from .services import build_burial_place_search_q, build_person_search_q, serialize_tree
 
 SEARCH_RESULT_LIMIT = 50
 
@@ -102,21 +101,17 @@ class SearchView(APIView):
 
         py_logger.debug(f"Search query={query!r} by {request.user}")
 
-        person_matches = Person.objects.filter(
-            Q(first_name__icontains=query)
-            | Q(last_name__icontains=query)
-            | Q(patronymic__icontains=query)
-            | Q(maiden_name__icontains=query)
-            | Q(birth_place__icontains=query)
+        person_matches = Person.objects.select_related("burial_place").filter(
+            build_person_search_q(query)
         )[:SEARCH_RESULT_LIMIT]
 
         place_matches = BurialPlace.objects.filter(
-            Q(name__icontains=query) | Q(city__icontains=query) | Q(address__icontains=query)
+            build_burial_place_search_q(query)
         ).prefetch_related("persons")[:SEARCH_RESULT_LIMIT]
 
         return Response(
             {
-                "persons": PersonListSerializer(person_matches, many=True, context={"request": request}).data,
+                "persons": PersonSearchSerializer(person_matches, many=True, context={"request": request}).data,
                 "burial_places": BurialPlaceSerializer(place_matches, many=True, context={"request": request}).data,
             }
         )

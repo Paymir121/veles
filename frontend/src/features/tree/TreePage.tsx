@@ -23,9 +23,6 @@ export function TreePage() {
       treeViewRef.current?.focusOnPerson(String(selection.person.id));
       return;
     }
-    // A burial place doesn't have its own tree node, but its nested
-    // `persons` (already included in the /api/search/ response) do - focus
-    // the first person buried there as the closest useful equivalent.
     const firstPerson = selection.burialPlace.persons[0];
     if (firstPerson) {
       treeViewRef.current?.focusOnPerson(String(firstPerson.id));
@@ -40,12 +37,12 @@ export function TreePage() {
 
   return (
     <div className="tree-page">
-      <div className="page-toolbar">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3 mb-4">
         <SearchBar onSelect={handleSearchSelect} />
         {islands.length > 1 && (
-          <label className="family-island-picker">
+          <label className="field-label sm:min-w-[220px]">
             Ветка семьи
-            <select value={selectedIslandId} onChange={handleIslandChange}>
+            <select className="input w-auto min-w-[220px]" value={selectedIslandId} onChange={handleIslandChange}>
               {islands.map((island) => (
                 <option key={island.id} value={island.id}>
                   {island.label}

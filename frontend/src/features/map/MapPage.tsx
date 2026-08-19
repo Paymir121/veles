@@ -15,15 +15,11 @@ export function MapPage() {
       }
       return;
     }
-    // A person search result doesn't carry burial place coordinates
-    // directly (Person.burial_place is just an id) - recentering on a
-    // person from the map isn't wired up further than this for now; the
-    // burial-place search path above covers the map's primary use case.
   }
 
   return (
     <div className="map-page">
-      <div className="page-toolbar">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3 mb-4">
         <SearchBar onSelect={handleSearchSelect} />
       </div>
       <div className="map-view-container">

@@ -129,6 +129,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    # DRF ships DecimalFields as JSON strings by default. BurialPlace
+    # latitude/longitude are fed straight into Yandex Maps geometry, which
+    # needs real numbers, so emit them as numbers instead of making every
+    # consumer remember to parse them.
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 SIMPLE_JWT = {

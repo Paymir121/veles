@@ -7,9 +7,6 @@ export interface TreeViewHandle {
   focusOnPerson: (id: string) => void;
 }
 
-// Renders the family-chart tree from useTree() (GET /api/tree/). Exposes an
-// imperative `focusOnPerson` handle so TreePage can wire up search results
-// without TreeView needing to know anything about the search feature.
 export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartHandleRef = useRef<FamilyChartHandle | null>(null);
@@ -36,8 +33,6 @@ export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref
     }
   }, [data, navigate]);
 
-  // Unmount cleanup only (empty deps) - tears down the D3/family-chart DOM
-  // tree when TreePage itself unmounts (e.g. navigating away).
   useEffect(() => {
     return () => {
       chartHandleRef.current?.destroy();
@@ -45,12 +40,12 @@ export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref
     };
   }, []);
 
-  if (isLoading) return <p>Загрузка дерева...</p>;
+  if (isLoading) return <p className="text-text-muted p-6">Загрузка дерева...</p>;
   if (isError) {
     return (
-      <div className="tree-empty-state">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
         <p>Не удалось загрузить дерево.</p>
-        <button type="button" onClick={() => void refetch()}>
+        <button type="button" className="btn btn-secondary" onClick={() => void refetch()}>
           Повторить
         </button>
       </div>
@@ -59,7 +54,7 @@ export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref
 
   if (!data || data.length === 0) {
     return (
-      <div className="tree-empty-state">
+      <div className="flex-1 flex items-center justify-center text-text-muted">
         <p>В дереве пока нет ни одного человека.</p>
       </div>
     );

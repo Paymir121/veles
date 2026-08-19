@@ -24,43 +24,32 @@ function buildBalloonContent(place: BurialPlace): string {
       const name = escapeHtmlForBalloon(
         [person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' '),
       );
-      // Plain anchor navigation (full page load), not client-side routing:
-      // Yandex's native balloon renders raw HTML outside React's tree, so
-      // there's no clean way to hook React Router's <Link> into it without
-      // significantly more integration work. Acceptable trade-off for a
-      // small non-commercial app - documented here rather than silently
-      // assumed.
       return `<li><a href="/person/${person.id}">${name}</a></li>`;
     })
     .join('');
   return `<ul class="map-balloon-persons">${items}</ul>`;
 }
 
-// Renders one <Placemark> per BurialPlace (clustered), each balloon listing
-// the people buried there with links to /person/:id. If the API key is
-// missing, this renders an explanatory message instead of ever touching the
-// Yandex SDK - the app can't function without a real key, but it shouldn't
-// crash in dev before one is registered.
 export function MapView({ onMapInstanceReady }: MapViewProps) {
   const { data: burialPlaces = [], isLoading, isError } = useBurialPlaces();
 
   if (!hasYandexMapsApiKey()) {
     return (
-      <div className="map-missing-key">
+      <div className="flex-1 flex items-center justify-center p-6 text-center text-text-muted">
         <p>
-          Не задан ключ Яндекс.Карт (<code>VITE_YANDEX_MAPS_API_KEY</code>). Получите бесплатный
+          Не задан ключ Яндекс.Карт (<code className="bg-bg-muted px-1 rounded">VITE_YANDEX_MAPS_API_KEY</code>). Получите бесплатный
           ключ на{' '}
-          <a href="https://yandex.com/dev/maps" target="_blank" rel="noreferrer">
+          <a href="https://yandex.com/dev/maps" target="_blank" rel="noreferrer" className="text-accent hover:underline">
             yandex.com/dev/maps
           </a>{' '}
-          и укажите его в <code>.env</code>.
+          и укажите его в <code className="bg-bg-muted px-1 rounded">.env</code>.
         </p>
       </div>
     );
   }
 
-  if (isLoading) return <p>Загрузка карты...</p>;
-  if (isError) return <p>Не удалось загрузить места захоронения.</p>;
+  if (isLoading) return <p className="text-text-muted p-6">Загрузка карты...</p>;
+  if (isError) return <p className="text-error p-6">Не удалось загрузить места захоронения.</p>;
 
   const placeableLocations = burialPlaces.filter(
     (place): place is BurialPlace & { latitude: number; longitude: number } =>
