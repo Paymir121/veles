@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -15,10 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12" # matches backend/Dockerfile's base image
+          python-version: "3.12"
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      # No .env needed: veles.settings.dev (used by pytest.ini) has safe
-      # built-in defaults (SECRET_KEY, sqlite) for exactly this reason.
       - run: pytest -q
       - run: python manage.py makemigrations --check --dry-run
 
@@ -38,6 +36,22 @@ jobs:
       - run: npm run build
       - run: npm run test
       - run: npm run lint
-      # Full Playwright e2e deliberately not run here yet -- needs a live
-      # backend + seeded data in the runner, more than this project needs
-      # for now. tests/e2e/smoke.spec.ts stays a local/Playwright-MCP gate.
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            git pull origin main
+            docker compose build
+            docker compose up -d --remove-orphans
+            docker image prune -f
