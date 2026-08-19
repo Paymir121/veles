@@ -11,22 +11,19 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState(user?.first_name ?? '');
+  const [lastName, setLastName] = useState(user?.last_name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
-    if (user) {
-      setFirstName(user.first_name ?? '');
-      setLastName(user.last_name ?? '');
-      setEmail(user.email ?? '');
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchCurrentUser().then((u) => setUser(u)).catch(() => {});
+    fetchCurrentUser().then((u) => {
+      setUser(u);
+      setFirstName(u.first_name ?? '');
+      setLastName(u.last_name ?? '');
+      setEmail(u.email ?? '');
+    }).catch(() => {});
   }, [setUser]);
 
   async function handleSave(e: React.FormEvent) {
