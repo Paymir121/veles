@@ -301,8 +301,9 @@ function groupBranchRank(
   coreSurnames?: Set<string>,
 ): number {
   if (branchRanks.has(groupId)) return branchRanks.get(groupId) as number;
-  const person = sourceById?.get(groupId);
-  if (!person || !coreSurnames || !sourceById) return 0;
+  if (!sourceById || !coreSurnames) return 0;
+  const person = sourceById.get(groupId);
+  if (!person) return 0;
   if (person.rels.parents.length > 0) return 0;
   if (isTrueRoot(person, sourceById)) return 0;
   return coreSurnames.has(person.data.last_name) ? 0 : 1;
@@ -675,10 +676,6 @@ function resolvePersonFamilyGroup(
 
   return personId;
 }
-
-const REPACK_SIBLING_GAP = 40;
-const REPACK_BRANCH_GAP = 88;
-const LAYER_Y_TOLERANCE = 55;
 
 function centerFamilyNodes(nodes: Node<TreeLayoutNodeData>[], sourceData: TreeNode[]): void {
   const byId = new Map(nodes.map((node) => [node.id, node]));
