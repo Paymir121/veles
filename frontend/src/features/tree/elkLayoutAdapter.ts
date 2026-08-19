@@ -1,6 +1,6 @@
 import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import type { Node, Edge } from '@xyflow/react';
-import type { TreeNode } from '@/shared/types';
+import type { TreeNode, TreeNodeData } from '@/shared/types';
 import { formatShortName } from '@/shared/utils/formatName';
 
 export interface PersonNodeData extends Record<string, unknown> {
