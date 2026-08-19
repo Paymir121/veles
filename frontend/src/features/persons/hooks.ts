@@ -3,6 +3,7 @@ import {
   createBurialPlace,
   createPerson,
   deletePerson,
+  fetchAllBurialPlaces,
   fetchBurialPlace,
   fetchPerson,
   fetchPersons,
@@ -71,6 +72,13 @@ export function useDeletePerson() {
   return useMutation({
     mutationFn: (id: number) => deletePerson(id),
     onSuccess: invalidate,
+  });
+}
+
+export function useAllBurialPlaces() {
+  return useQuery({
+    queryKey: ['burial-places'],
+    queryFn: fetchAllBurialPlaces,
   });
 }
 

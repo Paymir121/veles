@@ -137,6 +137,11 @@ export async function deletePerson(id: number): Promise<void> {
 // display). features/map/api.ts hits the same /api/burial-places/ resource
 // independently for its own needs (the map view) - a small amount of
 // duplication is the price of features not importing each other directly.
+export async function fetchAllBurialPlaces(): Promise<BurialPlace[]> {
+  const { data } = await apiClient.get('/burial-places/');
+  return unwrapList<BurialPlace>(data);
+}
+
 export async function searchBurialPlaces(query: string): Promise<BurialPlace[]> {
   const { data } = await apiClient.get('/burial-places/', { params: { search: query } });
   return unwrapList<BurialPlace>(data);

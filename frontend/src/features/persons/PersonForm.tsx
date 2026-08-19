@@ -1,5 +1,5 @@
-import { Map, Placemark, YMaps, useYMaps } from '@pbe/react-yandex-maps';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Clusterer, Map, Placemark, YMaps, useYMaps } from '@pbe/react-yandex-maps';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import {
   DEFAULT_MAP_CENTER,
@@ -8,7 +8,8 @@ import {
   hasYandexMapsApiKey,
   yandexMapsQuery,
 } from '@/shared/maps/yandexMapsSetup';
-import type { Gender, PersonStatus } from '@/shared/types';
+import type { BurialPlace, Gender, PersonStatus } from '@/shared/types';
+import { escapeHtml } from '@/shared/utils/escapeHtml';
 
 type YMapsApi = NonNullable<ReturnType<typeof useYMaps>>;
 
@@ -22,6 +23,7 @@ interface GeocodeResultLike {
 import { ExtraInfoListEditor } from './ExtraInfoListEditor';
 import { PhotoUploadField } from './PhotoUploadField';
 import {
+  useAllBurialPlaces,
   useBurialPlace,
   useBurialPlaceSearch,
   useCreateBurialPlace,
@@ -828,7 +830,14 @@ function BurialPlaceField({
                   setQuery('');
                 }}
               >
-                {place.name} {place.city && `(${place.city})`}
+                <span>{place.name} {place.city && `(${place.city})`}</span>
+                {place.persons && place.persons.length > 0 && (
+                  <span className="block text-xs text-text-muted mt-0.5">
+                    {place.persons.map((p) =>
+                      [p.last_name, p.first_name].filter(Boolean).join(' ')
+                    ).join(', ')}
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -1022,6 +1031,20 @@ interface MapPickerContentProps {
   onYmapsReady: (instance: YMapsApi) => void;
 }
 
+function buildBalloonContent(place: BurialPlace): string {
+  const persons = place.persons ?? [];
+  if (persons.length === 0) return '<p>Нет привязанных записей.</p>';
+  const items = persons
+    .map((p) => {
+      const name = escapeHtml(
+        [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '),
+      );
+      return `<li><a href="/person/${p.id}">${name}</a></li>`;
+    })
+    .join('');
+  return `<ul class="map-balloon-persons">${items}</ul>`;
+}
+
 function MapPickerContent({
   latitude,
   longitude,
@@ -1030,6 +1053,14 @@ function MapPickerContent({
 }: MapPickerContentProps) {
   const ymapsInstance = useYMaps(['geocode']);
   const [searchQuery, setSearchQuery] = useState('');
+  const { data: allPlaces = [] } = useAllBurialPlaces();
+
+  const placeableLocations = useMemo(
+    () => allPlaces.filter(
+      (p) => Number.isFinite(Number(p.latitude)) && Number.isFinite(Number(p.longitude)),
+    ),
+    [allPlaces],
+  );
 
   useEffect(() => {
     if (ymapsInstance) onYmapsReady(ymapsInstance);
@@ -1101,11 +1132,34 @@ function MapPickerContent({
           onClick={(e: { get: (key: 'coords') => number[] }) => {
             void resolvePoint(e.get('coords'));
           }}
+          modules={['control.ZoomControl']}
         >
+          <Clusterer
+            options={{ preset: 'islands#invertedVioletClusterIcons' }}
+            modules={['clusterer.addon.balloon']}
+          >
+            {placeableLocations.map((place) => (
+              <Placemark
+                key={place.id}
+                geometry={[Number(place.latitude), Number(place.longitude)]}
+                modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
+                properties={{
+                  hintContent: `${place.name}${place.city ? ` (${place.city})` : ''}`,
+                  balloonContentHeader: escapeHtml(place.name),
+                  balloonContentBody: buildBalloonContent(place),
+                }}
+                options={{
+                  preset: 'islands#violetDotIcon',
+                  balloonAutoPan: true,
+                  balloonMaxWidth: window.innerWidth >= 640 ? 400 : 250,
+                }}
+              />
+            ))}
+          </Clusterer>
           {hasPoint && (
             <Placemark
               geometry={[parsedLat as number, parsedLng as number]}
-              options={{ draggable: true, preset: 'islands#violetIcon' }}
+              options={{ draggable: true, preset: 'islands#redIcon', zIndex: 1000 }}
               onDragEnd={(e: {
                 get: (key: 'target') => { geometry: { getCoordinates(): number[] | null } | null };
               }) => {

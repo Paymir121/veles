@@ -294,6 +294,9 @@ body {
   max-height: none;
   display: flex;
   flex-direction: column;
+  margin: auto;
+  position: fixed;
+  inset: 0;
 }
 
 .map-picker-dialog::backdrop {

@@ -71,7 +71,7 @@ export function NavBar() {
           {isAuthenticated && (
             <>
               <NavLink to="/person/new" className={linkClass}>
-                Добавить
+                Добавить человека
               </NavLink>
             </>
           )}
