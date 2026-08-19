@@ -1,0 +1,14 @@
+# Override merged on top of docker-compose.yml for deployment:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+#
+# Adds `image:` so `pull` fetches CI-built images from GHCR. `build:` stays
+# defined in the base file too -- Compose only rebuilds when an image is
+# missing locally, so a fresh `pull` is used as-is by `up -d`, and the server
+# never needs Node/Python build toolchains installed.
+services:
+  backend:
+    image: ghcr.io/paymir121/veles-backend:latest
+
+  nginx:
+    image: ghcr.io/paymir121/veles-frontend:latest

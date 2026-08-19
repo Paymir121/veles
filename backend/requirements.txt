@@ -1,0 +1,10 @@
+Django==5.2.*
+djangorestframework
+djoser
+djangorestframework-simplejwt
+django-filter
+django-cors-headers
+django-environ
+Pillow
+psycopg2-binary
+gunicorn

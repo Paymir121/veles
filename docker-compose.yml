@@ -1,0 +1,51 @@
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: veles.settings.prod
+    volumes:
+      - backend_db:/app/data
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - backend_logs:/app/log
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn veles.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./frontend
+      args:
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY}
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - media_data:/app/media:ro
+      - static_data:/usr/share/nginx/staticfiles:ro
+    restart: unless-stopped
+
+  # Uncomment when migrating off SQLite. Also switch DATABASE_URL in .env to
+  # postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  # and add `depends_on: [postgres]` under backend.
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   environment:
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+
+volumes:
+  backend_db:
+  media_data:
+  static_data:
+  backend_logs:
+  # pg_data:

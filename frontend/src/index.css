@@ -1,0 +1,459 @@
+@import "tailwindcss";
+
+/* ── Design tokens ──────────────────────────────────────────────────────── */
+
+@theme {
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-bg: #ffffff;
+  --color-bg-muted: #eaf3fb;
+  --color-surface: #f8fafc;
+  --color-border: #d7e6f5;
+  --color-accent: #2563eb;
+  --color-accent-contrast: #ffffff;
+  --color-accent-secondary: #10b981;
+  --color-error: #dc2626;
+
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius-default: 8px;
+  --radius-lg: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-bg: #0b1220;
+    --color-bg-muted: #16213a;
+    --color-surface: #111b2e;
+    --color-border: #2a3b55;
+    --color-accent: #60a5fa;
+    --color-accent-contrast: #0b1220;
+    --color-accent-secondary: #34d399;
+  }
+}
+
+/* ── Preflight compat for third-party map/chart widgets ─────────────────── */
+/* Tailwind Preflight sets img{max-width:100%} and *{border-width:0} which
+   breaks Yandex Maps tiles/controls and family-chart's SVG cards. Restore
+   defaults inside those containers. */
+@layer base {
+  .map-view-container img,
+  .map-view-container [class*="ymaps"] img,
+  .map-picker-dialog img,
+  .map-picker-dialog [class*="ymaps"] img {
+    max-width: none;
+  }
+
+  .tree-view-container.f3 *,
+  .map-view-container *,
+  .map-picker-dialog * {
+    border-style: initial;
+  }
+}
+
+/* ── Semantic component classes ─────────────────────────────────────────── */
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font: inherit;
+    font-weight: 500;
+    padding: 10px 20px;
+    min-height: 44px;
+    border-radius: var(--radius-default);
+    border: 1px solid var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    cursor: pointer;
+    transition: opacity 0.15s, box-shadow 0.15s;
+  }
+  .btn:hover:not(:disabled) {
+    opacity: 0.9;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-accent);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-bg-muted);
+    opacity: 1;
+  }
+
+  .btn-danger {
+    border-color: var(--color-error);
+    background: var(--color-error);
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) {
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-error) 30%, transparent);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text-muted);
+    padding: 8px 12px;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    opacity: 1;
+  }
+
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .input {
+    font: inherit;
+    padding: 10px 12px;
+    min-height: 44px;
+    border-radius: var(--radius-default);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+  }
+
+  .field-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+}
+
+/* ── Global base ────────────────────────────────────────────────────────── */
+
+body {
+  margin: 0;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+#root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Layout shell ───────────────────────────────────────────────────────── */
+/* The flex chain #root → .app-layout → .app-content gives tree/map/page
+   containers a definite height to fill. .app-content scrolls internally. */
+
+.app-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .app-content {
+    padding: 24px;
+  }
+}
+
+/* ── Tree ─────────────────────────────────────────────────────────────── */
+
+.tree-page,
+.map-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.tree-view-container {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* family-chart requires "f3 f3-cont" on the container for its CSS to
+   activate. These overrides beat the library's own height:900px/max-height:70vh
+   at specificity (0,3,0). */
+.tree-view-container.f3.f3-cont {
+  --male-color: var(--color-accent);
+  --female-color: var(--color-accent-secondary);
+  --genderless-color: var(--color-border);
+  --background-color: var(--color-bg);
+  --text-color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+
+.tree-view-container.f3 svg.main_svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* family-chart draws <path class="link"> with hardcoded stroke="#fff" via D3.
+   Any CSS rule beats a presentation attribute. */
+.tree-view-container.f3 .links_view path.link {
+  stroke: var(--color-text-muted);
+}
+
+/* ── f3 card (HTML built by familyChartAdapter.ts, not JSX) ────────────── */
+
+.f3-card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 3px solid;
+}
+
+.f3-card-inner.f3-card-status-alive {
+  border-color: var(--color-accent-secondary);
+}
+
+.f3-card-inner.f3-card-status-deceased {
+  border-color: #0f172a;
+}
+
+.f3-card-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.f3-card-avatar-placeholder {
+  background: var(--color-bg-muted);
+}
+
+.f3-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.f3-card-lifespan {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Map ────────────────────────────────────────────────────────────────── */
+
+.map-view-container {
+  flex: 1;
+  min-height: 300px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .map-view-container {
+    min-height: 500px;
+  }
+}
+
+/* ── Map picker dialog ──────────────────────────────────────────────────── */
+
+.map-picker-dialog {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0;
+  width: min(95vw, 900px);
+  height: min(90vh, 700px);
+  max-width: none;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-picker-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 639px) {
+  .map-picker-dialog {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    margin: 0;
+  }
+}
+
+/* ── Picker results dropdown (shared by person/burial pickers) ──────────── */
+
+.picker-results {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-default);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.picker-results button {
+  all: unset;
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.picker-results button:hover {
+  background: var(--color-bg-muted);
+}
+
+/* ── Search bar dropdown ────────────────────────────────────────────────── */
+
+.search-bar-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.search-results-group h4 {
+  margin: 8px 0 4px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.search-results-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.search-results-group button {
+  all: unset;
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  min-height: 44px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.search-results-group button:hover {
+  background: var(--color-bg-muted);
+}
+
+/* ── Wizard step indicator ──────────────────────────────────────────────── */
+
+.wizard-steps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wizard-step-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  min-height: 44px;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+  box-sizing: border-box;
+}
+
+.wizard-step-btn:hover {
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.wizard-step-btn[data-active="true"] {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.wizard-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+.wizard-step-btn[data-active="true"] .wizard-step-num {
+  background: var(--color-accent-contrast);
+  color: var(--color-accent);
+}

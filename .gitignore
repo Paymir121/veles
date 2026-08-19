@@ -221,9 +221,30 @@ __marimo__/
 .idea/
 .vscode/
 
-# Claude Code local state
-.claude/
+# Claude Code local state (settings.json / skills / .mcp.json ARE tracked on purpose)
+.claude/settings.local.json
 
 # OS
 .DS_Store
 Thumbs.db
+
+# --- Veles project-specific ---
+
+# Django
+backend/media/
+backend/staticfiles/
+backend/db.sqlite3
+backend/log/
+*.env
+!*.env.example
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# Local debug leftovers (Playwright screenshots, inspect scripts)
+_tmp_*
+/*.png
+.playwright-mcp/

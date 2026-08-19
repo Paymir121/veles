@@ -1,0 +1,323 @@
+{
+  "_comment": "Human-readable demo/test data for local development. Loaded by `py init.py` (via the seed_demo_data management command) only if the database is empty. Persons/burial places reference each other by the short 'key' string below, not by database id -- the loader resolves keys to real rows itself. latitude/longitude MUST be JSON strings (\"55.77\"), not numbers -- a raw float loses precision as a binary double and fails Person/BurialPlace DecimalField validation.",
+
+  "burial_places": [
+    {
+      "key": "vagankovskoe",
+      "name": "Ваганьковское кладбище",
+      "city": "Москва",
+      "latitude": "55.7761",
+      "longitude": "37.5589",
+      "address": "ул. Сергея Макеева, 15",
+      "description": "Историческое кладбище на северо-западе Москвы."
+    },
+    {
+      "key": "nikolo_arhangelskoe",
+      "name": "Николо-Архангельское кладбище",
+      "city": "Балашиха",
+      "latitude": "55.7486",
+      "longitude": "37.9528",
+      "address": "мкр. Никольско-Архангельский",
+      "description": ""
+    }
+  ],
+
+  "persons": [
+    {
+      "key": "petr",
+      "first_name": "Пётр",
+      "last_name": "Соколов",
+      "patronymic": "Иванович",
+      "gender": "M",
+      "birth_date": "1920-05-10",
+      "birth_place": "с. Дубровка, Тверская губерния",
+      "status": "deceased",
+      "death_date": "1995-02-20",
+      "burial_place": "vagankovskoe",
+      "burial_plot_details": "участок 12, ряд 4",
+      "extra_info": [
+        {
+          "category": "work",
+          "title": "Мастер на заводе «Серп и Молот»",
+          "date_from": "1946",
+          "date_to": "1985"
+        }
+      ]
+    },
+    {
+      "key": "anna",
+      "first_name": "Анна",
+      "last_name": "Соколова",
+      "patronymic": "Дмитриевна",
+      "maiden_name": "Волкова",
+      "gender": "F",
+      "birth_date": "1923-09-02",
+      "status": "deceased",
+      "death_date": "2001-12-11",
+      "burial_place": "vagankovskoe",
+      "burial_plot_details": "участок 12, ряд 4",
+      "extra_info": []
+    },
+    {
+      "key": "sergey",
+      "first_name": "Сергей",
+      "last_name": "Соколов",
+      "patronymic": "Петрович",
+      "gender": "M",
+      "birth_date": "1948-07-03",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "petr",
+      "mother": "anna",
+      "extra_info": [
+        {
+          "category": "work",
+          "title": "Инженер-конструктор, завод «Серп и Молот»",
+          "date_from": "1971",
+          "date_to": "2008"
+        }
+      ]
+    },
+    {
+      "key": "lyudmila",
+      "first_name": "Людмила",
+      "last_name": "Соколова",
+      "patronymic": "Викторовна",
+      "maiden_name": "Кузнецова",
+      "gender": "F",
+      "birth_date": "1950-01-27",
+      "status": "alive",
+      "extra_info": [
+        {
+          "category": "education",
+          "title": "Московский педагогический институт",
+          "date_from": "1968",
+          "date_to": "1973"
+        }
+      ]
+    },
+    {
+      "key": "olga",
+      "first_name": "Ольга",
+      "last_name": "Морозова",
+      "patronymic": "Петровна",
+      "maiden_name": "Соколова",
+      "gender": "F",
+      "birth_date": "1952-11-22",
+      "status": "deceased",
+      "death_date_text": "2015",
+      "burial_place": "nikolo_arhangelskoe",
+      "father": "petr",
+      "mother": "anna",
+      "extra_info": [],
+      "notes": "Точная дата смерти неизвестна, известен только год."
+    },
+    {
+      "key": "nikolay",
+      "first_name": "Николай",
+      "last_name": "Соколов",
+      "patronymic": "Петрович",
+      "gender": "M",
+      "birth_date": "1955-06-30",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "petr",
+      "mother": "anna",
+      "extra_info": [
+        {
+          "category": "work",
+          "title": "Водитель автобазы",
+          "date_from": "1975",
+          "date_to": "2015"
+        }
+      ],
+      "notes": "Не был женат, детей нет."
+    },
+    {
+      "key": "viktor",
+      "first_name": "Виктор",
+      "last_name": "Морозов",
+      "patronymic": "Николаевич",
+      "gender": "M",
+      "birth_date": "1950-04-09",
+      "status": "alive",
+      "extra_info": []
+    },
+    {
+      "key": "tatyana",
+      "first_name": "Татьяна",
+      "last_name": "Морозова",
+      "patronymic": "Игоревна",
+      "maiden_name": "Белова",
+      "gender": "F",
+      "birth_date": "1958-02-17",
+      "status": "alive",
+      "extra_info": [
+        {
+          "category": "work",
+          "title": "Врач-педиатр",
+          "date_from": "1981",
+          "date_to": ""
+        }
+      ],
+      "notes": "Вторая жена Виктора, поженились после смерти Ольги."
+    },
+    {
+      "key": "irina",
+      "first_name": "Ирина",
+      "last_name": "Соколова",
+      "patronymic": "Олеговна",
+      "maiden_name": "Волкова",
+      "gender": "F",
+      "birth_date": "1974-05-05",
+      "status": "alive",
+      "extra_info": []
+    },
+    {
+      "key": "dmitry",
+      "first_name": "Дмитрий",
+      "last_name": "Соколов",
+      "patronymic": "Сергеевич",
+      "gender": "M",
+      "birth_date": "1972-04-18",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "sergey",
+      "mother": "lyudmila",
+      "extra_info": [
+        {
+          "category": "education",
+          "title": "МГУ, физический факультет",
+          "date_from": "1989",
+          "date_to": "1994"
+        },
+        {
+          "category": "work",
+          "title": "Инженер-программист",
+          "date_from": "1994",
+          "date_to": "",
+          "description": "Работает в IT-компании по настоящее время."
+        }
+      ]
+    },
+    {
+      "key": "ekaterina",
+      "first_name": "Екатерина",
+      "last_name": "Соколова",
+      "patronymic": "Сергеевна",
+      "gender": "F",
+      "birth_date": "1975-08-30",
+      "status": "alive",
+      "father": "sergey",
+      "mother": "lyudmila",
+      "extra_info": []
+    },
+    {
+      "key": "anastasia",
+      "first_name": "Анастасия",
+      "last_name": "Морозова",
+      "patronymic": "Викторовна",
+      "gender": "F",
+      "birth_date": "1978-03-14",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "viktor",
+      "mother": "olga",
+      "extra_info": [
+        {
+          "category": "hobby",
+          "title": "Игра на фортепиано"
+        }
+      ]
+    },
+    {
+      "key": "roman",
+      "first_name": "Роман",
+      "last_name": "Морозов",
+      "patronymic": "Викторович",
+      "gender": "M",
+      "birth_date": "2018-09-01",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "viktor",
+      "mother": "tatyana",
+      "extra_info": [],
+      "notes": "Единокровный брат Анастасии (от второго брака Виктора)."
+    },
+    {
+      "key": "nikita",
+      "first_name": "Никита",
+      "last_name": "Соколов",
+      "patronymic": "Дмитриевич",
+      "gender": "M",
+      "birth_date": "1999-01-12",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "dmitry",
+      "mother": "irina",
+      "extra_info": [
+        {
+          "category": "education",
+          "title": "МГТУ им. Баумана",
+          "date_from": "2016",
+          "date_to": "2021"
+        }
+      ]
+    },
+    {
+      "key": "polina",
+      "first_name": "Полина",
+      "last_name": "Соколова",
+      "patronymic": "Дмитриевна",
+      "gender": "F",
+      "birth_date": "2003-07-19",
+      "birth_place": "Москва",
+      "status": "alive",
+      "father": "dmitry",
+      "mother": "irina",
+      "extra_info": [
+        {
+          "category": "education",
+          "title": "Школа №57, гуманитарный класс",
+          "date_from": "2010",
+          "date_to": "2021"
+        }
+      ]
+    }
+  ],
+
+  "unions": [
+    {
+      "person1": "petr",
+      "person2": "anna",
+      "date_start": "1946-01-15",
+      "status": "married"
+    },
+    {
+      "person1": "sergey",
+      "person2": "lyudmila",
+      "date_start": "1970-06-20",
+      "status": "married"
+    },
+    {
+      "person1": "viktor",
+      "person2": "olga",
+      "date_start": "1974-09-01",
+      "date_end_text": "2015",
+      "status": "widowed",
+      "notes": "Брак закончился со смертью Ольги."
+    },
+    {
+      "person1": "viktor",
+      "person2": "tatyana",
+      "date_start": "2017-05-20",
+      "status": "married"
+    },
+    {
+      "person1": "dmitry",
+      "person2": "irina",
+      "date_start": "1998-08-15",
+      "status": "married"
+    }
+  ]
+}
