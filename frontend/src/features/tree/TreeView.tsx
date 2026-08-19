@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTree } from './hooks';
-import { layoutTree, type TreeLayoutNodeData } from './elkLayoutAdapter';
+import { layoutTree, type TreeEdgeData, type TreeLayoutNodeData } from './elkLayoutAdapter';
 import { FamilyNode, PersonNode } from './PersonNode';
 
 const nodeTypes = { person: PersonNode, family: FamilyNode };
@@ -27,7 +27,7 @@ function TreeViewInner({ focusPersonId }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<TreeLayoutNodeData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<TreeEdgeData>>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const { fitView } = useReactFlow();
 

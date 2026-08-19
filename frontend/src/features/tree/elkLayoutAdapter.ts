@@ -3,10 +3,14 @@ import type { Node, Edge } from '@xyflow/react';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
 import { formatShortName } from '@/shared/utils/formatName';
 
+export type TreeEdgeKind = 'leafStem' | 'branch' | 'root';
+
 export interface PersonNodeData extends Record<string, unknown> {
   kind: 'person';
   label: string;
   status: TreeNodeData['status'];
+  isRootGeneration: boolean;
+  hasChildren: boolean;
 }
 
 export interface FamilyNodeData extends Record<string, unknown> {
@@ -17,13 +21,15 @@ export interface FamilyNodeData extends Record<string, unknown> {
 
 export type TreeLayoutNodeData = PersonNodeData | FamilyNodeData;
 
-const PERSON_NODE_WIDTH = 120;
+export interface TreeEdgeData extends Record<string, unknown> {
+  kind: TreeEdgeKind;
+}
+
+const PERSON_NODE_WIDTH = 132;
 const PERSON_NODE_HEIGHT = 70;
-const FAMILY_NODE_WIDTH = 24;
-const FAMILY_NODE_HEIGHT = 12;
+const FAMILY_NODE_WIDTH = 8;
+const FAMILY_NODE_HEIGHT = 8;
 const COMPONENT_GAP_X = 110;
-const PERSON_EDGE_COLOR = '#94a3b8';
-const CHILD_EDGE_COLOR = '#cbd5e1';
 
 const elk = new ELK();
 
@@ -44,8 +50,31 @@ interface LayoutRecord {
 
 interface BuiltGraph {
   elkNode: ElkNode;
-  rfEdges: Edge[];
+  rfEdges: Edge<TreeEdgeData>[];
   records: Map<string, LayoutRecord>;
+}
+
+function getPersonVisualKind(person: TreeNode): 'leaf' | 'branch' | 'root' {
+  const isRootGeneration = person.rels.parents.length === 0;
+  if (person.data.status === 'alive') return 'leaf';
+  return isRootGeneration ? 'root' : 'branch';
+}
+
+function getEdgeKindToPerson(person: TreeNode): TreeEdgeKind {
+  const visualKind = getPersonVisualKind(person);
+  if (visualKind === 'leaf') return 'leafStem';
+  if (visualKind === 'root') return 'root';
+  return 'branch';
+}
+
+function edgeStyleForKind(kind: TreeEdgeKind): NonNullable<Edge<TreeEdgeData>['style']> {
+  if (kind === 'leafStem') {
+    return { stroke: '#2aa56d', strokeWidth: 2.1 };
+  }
+  if (kind === 'root') {
+    return { stroke: '#6b4423', strokeWidth: 2.6 };
+  }
+  return { stroke: '#8a5a2d', strokeWidth: 2.2 };
 }
 
 function familyNodeId(parentIds: string[], childId: string): string {
@@ -76,9 +105,10 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
   const records = new Map<string, LayoutRecord>();
   const children: ElkNode[] = [];
   const edges: ElkExtendedEdge[] = [];
-  const rfEdges: Edge[] = [];
+  const rfEdges: Edge<TreeEdgeData>[] = [];
   const edgeSet = new Set<string>();
   const families = buildFamilyUnits(data);
+  const byId = new Map(data.map((person) => [person.id, person]));
 
   for (const person of data) {
     records.set(person.id, {
@@ -120,7 +150,20 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         source: parentId,
         target: family.id,
         type: 'straight',
-        style: { stroke: PERSON_EDGE_COLOR, strokeWidth: 1.25 },
+        data: {
+          kind: (byId.get(parentId) && getPersonVisualKind(byId.get(parentId) as TreeNode) === 'root')
+            ? 'root'
+            : byId.get(parentId)?.data.status === 'alive'
+              ? 'leafStem'
+              : 'branch',
+        },
+        style: edgeStyleForKind(
+          (byId.get(parentId) && getPersonVisualKind(byId.get(parentId) as TreeNode) === 'root')
+            ? 'root'
+            : byId.get(parentId)?.data.status === 'alive'
+              ? 'leafStem'
+              : 'branch',
+        ),
       });
     }
 
@@ -134,8 +177,9 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         id: edgeId,
         source: family.id,
         target: childId,
+        data: { kind: getEdgeKindToPerson(byId.get(childId) as TreeNode) },
         type: 'straight',
-        style: { stroke: CHILD_EDGE_COLOR, strokeWidth: 1.25 },
+        style: edgeStyleForKind(getEdgeKindToPerson(byId.get(childId) as TreeNode)),
       });
     }
   }
@@ -278,7 +322,7 @@ function alignComponents(
 
 export async function layoutTree(
   data: TreeNode[],
-): Promise<{ nodes: Node<TreeLayoutNodeData>[]; edges: Edge[] }> {
+): Promise<{ nodes: Node<TreeLayoutNodeData>[]; edges: Edge<TreeEdgeData>[] }> {
   if (data.length === 0) return { nodes: [], edges: [] };
 
   const { elkNode, rfEdges, records } = buildElkGraph(data);
@@ -309,6 +353,8 @@ export async function layoutTree(
         kind: 'person',
         label: formatShortName(record.person!.data),
         status: record.person!.data.status,
+          isRootGeneration: record.person!.rels.parents.length === 0,
+          hasChildren: record.person!.rels.children.length > 0,
       },
       width: PERSON_NODE_WIDTH,
       height: PERSON_NODE_HEIGHT,
