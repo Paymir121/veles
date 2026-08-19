@@ -175,13 +175,25 @@ function augmentWithVirtualParents(data: TreeNode[]): { nodes: TreeNode[]; virtu
   return { nodes: [...nodes, ...extra], virtualIds };
 }
 
-function pickHandleId(index: number, total: number, side: 'personSource' | 'familyTarget'): string {
-  const personHandles = ['top-left', 'top-center', 'top-right'] as const;
-  const familyHandles = ['bottom-left', 'bottom-center', 'bottom-right'] as const;
-  const handles = side === 'personSource' ? personHandles : familyHandles;
+function pickHandleId(
+  index: number,
+  total: number,
+  side: 'personSource' | 'familyTarget' | 'childTarget' | 'familySource',
+): string {
+  const personSources = ['top-left', 'top-center', 'top-right'] as const;
+  const familyTargets = ['bottom-left', 'bottom-center', 'bottom-right'] as const;
+  const childTargets = ['bottom-left', 'bottom-center', 'bottom-right'] as const;
+  const familySources = ['top-left', 'top-center', 'top-right'] as const;
+  const handles = side === 'personSource'
+    ? personSources
+    : side === 'familyTarget'
+      ? familyTargets
+      : side === 'childTarget'
+        ? childTargets
+        : familySources;
   if (total <= 1) return handles[1];
-  if (total === 2) return handles[index === 0 ? 0 : 2];
-  return handles[Math.min(index, handles.length - 1)];
+  const slot = Math.round((index / Math.max(total - 1, 1)) * (handles.length - 1));
+  return handles[slot];
 }
 
 function assignGenerations(data: TreeNode[]): Map<string, number> {
@@ -239,8 +251,25 @@ function edgeStyleForKind(kind: TreeEdgeKind): NonNullable<Edge<TreeEdgeData>['s
 }
 
 function familyNodeId(parentIds: string[], childId: string): string {
-  const parentsKey = parentIds.length > 0 ? parentIds.join('+') : `unknown-${childId}`;
+  const parentsKey = parentIds.length > 0 ? [...parentIds].sort().join('+') : `unknown-${childId}`;
   return `family:${parentsKey}`;
+}
+
+function buildPersonFamilyGroups(families: FamilyUnit[]): Map<string, string> {
+  const groups = new Map<string, string>();
+  for (const family of families) {
+    for (const parentId of family.parentIds) {
+      groups.set(parentId, family.id);
+    }
+  }
+  for (const family of families) {
+    for (const childId of family.childIds) {
+      if (!groups.has(childId)) {
+        groups.set(childId, family.id);
+      }
+    }
+  }
+  return groups;
 }
 
 function buildFamilyUnits(data: TreeNode[]): FamilyUnit[] {
@@ -256,7 +285,7 @@ function buildFamilyUnits(data: TreeNode[]): FamilyUnit[] {
       existing.childIds.push(node.id);
       continue;
     }
-    families.set(id, { id, parentIds: [...parentIds], childIds: [node.id] });
+    families.set(id, { id, parentIds: [...parentIds].sort(), childIds: [node.id] });
   }
 
   return [...families.values()];
@@ -272,6 +301,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
   const families = buildFamilyUnits(layoutData);
   const byId = new Map(layoutData.map((person) => [person.id, person]));
   const generations = assignGenerations(layoutData);
+  const personFamilyGroups = buildPersonFamilyGroups(families);
   const familiesByParent = new Map<string, FamilyUnit[]>();
   for (const family of families) {
     for (const parentId of family.parentIds) {
@@ -279,6 +309,9 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
       list.push(family);
       familiesByParent.set(parentId, list);
     }
+  }
+  for (const list of familiesByParent.values()) {
+    list.sort((a, b) => a.id.localeCompare(b.id));
   }
 
   for (const person of layoutData) {
@@ -310,9 +343,9 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
       const bGeneration = generations.get(b.id) ?? 0;
       if (aGeneration !== bGeneration) return aGeneration - bGeneration;
 
-      const aParentsKey = aPerson.rels.parents.join('+');
-      const bParentsKey = bPerson.rels.parents.join('+');
-      if (aParentsKey !== bParentsKey) return aParentsKey.localeCompare(bParentsKey);
+      const aFamilyGroup = personFamilyGroups.get(a.id) ?? aPerson.rels.parents.join('+');
+      const bFamilyGroup = personFamilyGroups.get(b.id) ?? bPerson.rels.parents.join('+');
+      if (aFamilyGroup !== bFamilyGroup) return aFamilyGroup.localeCompare(bFamilyGroup);
 
       return aPerson.data.last_name.localeCompare(bPerson.data.last_name, 'ru')
         || aPerson.data.first_name.localeCompare(bPerson.data.first_name, 'ru');
@@ -380,8 +413,10 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
       });
     }
 
+    const sortedChildIds = [...family.childIds].sort();
     for (const childId of family.childIds) {
       if (!records.has(childId)) continue;
+      const childIndex = sortedChildIds.indexOf(childId);
       const edgeId = `e-${family.id}-${childId}`;
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
@@ -392,7 +427,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         source: family.id,
         target: childId,
         sourceHandle: 'top-center',
-        targetHandle: 'bottom-center',
+        targetHandle: pickHandleId(childIndex, sortedChildIds.length, 'childTarget'),
         data: { kind: getEdgeKindToPerson(byId.get(childId) as TreeNode) },
         type: 'smoothstep',
         style: edgeStyleForKind(getEdgeKindToPerson(byId.get(childId) as TreeNode)),
@@ -566,8 +601,8 @@ export async function layoutTree(
         position: { x: child.x ?? 0, y: child.y ?? 0 },
         data: {
           kind: 'family',
-          parentIds: record.family?.parentIds ?? [],
-          childIds: record.family?.childIds ?? [],
+          parentIds: record.family?.parentIds.filter((id) => !isVirtualId(id)) ?? [],
+          childIds: record.family?.childIds.filter((id) => !isVirtualId(id)) ?? [],
         },
         width: FAMILY_NODE_WIDTH,
         height: FAMILY_NODE_HEIGHT,
