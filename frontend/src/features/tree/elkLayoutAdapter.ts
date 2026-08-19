@@ -29,7 +29,9 @@ const PERSON_NODE_WIDTH = 132;
 const PERSON_NODE_HEIGHT = 70;
 const FAMILY_NODE_WIDTH = 18;
 const FAMILY_NODE_HEIGHT = 8;
+const VIRTUAL_NODE_SIZE = 2;
 const COMPONENT_GAP_X = 110;
+const VIRTUAL_ID_PREFIX = 'virtual:';
 
 const elk = new ELK();
 
@@ -52,6 +54,125 @@ interface BuiltGraph {
   elkNode: ElkNode;
   rfEdges: Edge<TreeEdgeData>[];
   records: Map<string, LayoutRecord>;
+  virtualIds: Set<string>;
+  sourceData: TreeNode[];
+}
+
+function isVirtualId(id: string): boolean {
+  return id.startsWith(VIRTUAL_ID_PREFIX);
+}
+
+function createVirtualPerson(id: string, parents: string[], children: string[]): TreeNode {
+  return {
+    id,
+    data: {
+      first_name: '',
+      last_name: '',
+      patronymic: '',
+      gender: 'M',
+      gender_actual: 'M',
+      birth_date: '',
+      death_date: '',
+      status: 'deceased',
+      avatar: null,
+    },
+    rels: { parents, spouses: [], children },
+  };
+}
+
+function isTrueRoot(person: TreeNode, byId: Map<string, TreeNode>): boolean {
+  if (person.rels.parents.length > 0) return false;
+  if (person.rels.spouses.some((spouseId) => {
+    const spouse = byId.get(spouseId);
+    return spouse && spouse.rels.parents.length === 0;
+  })) return true;
+
+  for (const childId of person.rels.children) {
+    const child = byId.get(childId);
+    if (!child) continue;
+    for (const parentId of child.rels.parents) {
+      if (parentId === person.id) continue;
+      const coParent = byId.get(parentId);
+      if (coParent && coParent.rels.parents.length > 0) return false;
+    }
+  }
+
+  for (const spouseId of person.rels.spouses) {
+    const spouse = byId.get(spouseId);
+    if (spouse && spouse.rels.parents.length > 0) return false;
+  }
+
+  return true;
+}
+
+function inferTargetGeneration(
+  person: TreeNode,
+  byId: Map<string, TreeNode>,
+  generations: Map<string, number>,
+): number {
+  for (const childId of person.rels.children) {
+    const child = byId.get(childId);
+    if (!child) continue;
+    for (const parentId of child.rels.parents) {
+      if (parentId === person.id) continue;
+      const coParentGeneration = generations.get(parentId);
+      if (coParentGeneration !== undefined) return coParentGeneration;
+    }
+  }
+
+  for (const spouseId of person.rels.spouses) {
+    const spouseGeneration = generations.get(spouseId);
+    if (spouseGeneration !== undefined) return spouseGeneration;
+  }
+
+  if (person.rels.children.length > 0) {
+    const childGenerations = person.rels.children
+      .map((childId) => generations.get(childId))
+      .filter((generation): generation is number => generation !== undefined);
+    if (childGenerations.length > 0) return Math.min(...childGenerations) - 1;
+  }
+
+  return 1;
+}
+
+function augmentWithVirtualParents(data: TreeNode[]): { nodes: TreeNode[]; virtualIds: Set<string> } {
+  const byId = new Map(data.map((node) => [node.id, node]));
+  const generations = assignGenerations(data);
+  const virtualIds = new Set<string>();
+  const nodes = data.map((person) => ({
+    ...person,
+    rels: {
+      parents: [...person.rels.parents],
+      spouses: [...person.rels.spouses],
+      children: [...person.rels.children],
+    },
+  }));
+  const extra: TreeNode[] = [];
+
+  for (const person of nodes) {
+    if (person.rels.parents.length > 0) continue;
+    if (isTrueRoot(person, byId)) continue;
+
+    const targetGeneration = Math.max(inferTargetGeneration(person, byId, generations), 1);
+    const chainIds = Array.from(
+      { length: targetGeneration },
+      (_, level) => `${VIRTUAL_ID_PREFIX}chain:${person.id}:${level}`,
+    );
+
+    for (let level = 0; level < targetGeneration; level += 1) {
+      const virtualId = chainIds[level];
+      virtualIds.add(virtualId);
+      extra.push(createVirtualPerson(
+        virtualId,
+        level === 0 ? [] : [chainIds[level - 1]],
+        level === targetGeneration - 1 ? [person.id] : [chainIds[level + 1]],
+      ));
+    }
+
+    person.rels.parents = [chainIds[targetGeneration - 1]];
+  }
+
+  return { nodes: [...nodes, ...extra], virtualIds };
 }
 
 function pickHandleId(index: number, total: number, side: 'personSource' | 'familyTarget'): string {
@@ -142,14 +263,15 @@ function buildFamilyUnits(data: TreeNode[]): FamilyUnit[] {
 }
 
 function buildElkGraph(data: TreeNode[]): BuiltGraph {
+  const { nodes: layoutData, virtualIds } = augmentWithVirtualParents(data);
   const records = new Map<string, LayoutRecord>();
   const children: ElkNode[] = [];
   const edges: ElkExtendedEdge[] = [];
   const rfEdges: Edge<TreeEdgeData>[] = [];
   const edgeSet = new Set<string>();
-  const families = buildFamilyUnits(data);
-  const byId = new Map(data.map((person) => [person.id, person]));
-  const generations = assignGenerations(data);
+  const families = buildFamilyUnits(layoutData);
+  const byId = new Map(layoutData.map((person) => [person.id, person]));
+  const generations = assignGenerations(layoutData);
   const familiesByParent = new Map<string, FamilyUnit[]>();
   for (const family of families) {
     for (const parentId of family.parentIds) {
@@ -159,12 +281,13 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
     }
   }
 
-  for (const person of data) {
+  for (const person of layoutData) {
+    const isVirtual = virtualIds.has(person.id);
     records.set(person.id, {
       id: person.id,
       kind: 'person',
-      width: PERSON_NODE_WIDTH,
-      height: PERSON_NODE_HEIGHT,
+      width: isVirtual ? VIRTUAL_NODE_SIZE : PERSON_NODE_WIDTH,
+      height: isVirtual ? VIRTUAL_NODE_SIZE : PERSON_NODE_HEIGHT,
       person,
     });
   }
@@ -232,6 +355,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
       edges.push({ id: edgeId, sources: [parentId], targets: [family.id] });
+      if (virtualIds.has(parentId)) continue;
       rfEdges.push({
         id: edgeId,
         source: parentId,
@@ -262,6 +386,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
       edges.push({ id: edgeId, sources: [family.id], targets: [childId] });
+      if (virtualIds.has(childId)) continue;
       rfEdges.push({
         id: edgeId,
         source: family.id,
@@ -275,9 +400,10 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
     }
   }
 
-  for (const node of data) {
+  for (const node of layoutData) {
     for (const spouseId of node.rels.spouses) {
       if (!records.has(spouseId) || node.id >= spouseId) continue;
+      if (virtualIds.has(node.id) || virtualIds.has(spouseId)) continue;
       const edgeId = `layout-spouse-${node.id}-${spouseId}`;
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
@@ -313,6 +439,8 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
     },
     rfEdges,
     records,
+    virtualIds,
+    sourceData: data,
   };
 }
 
@@ -417,10 +545,19 @@ export async function layoutTree(
 ): Promise<{ nodes: Node<TreeLayoutNodeData>[]; edges: Edge<TreeEdgeData>[] }> {
   if (data.length === 0) return { nodes: [], edges: [] };
 
-  const { elkNode, rfEdges, records } = buildElkGraph(data);
+  const { elkNode, rfEdges, records, virtualIds, sourceData } = buildElkGraph(data);
   const laid = await elk.layout(elkNode);
 
-  const nodes: Node<TreeLayoutNodeData>[] = (laid.children ?? []).map((child) => {
+  const nodes: Node<TreeLayoutNodeData>[] = (laid.children ?? [])
+    .filter((child) => {
+      if (virtualIds.has(child.id)) return false;
+      const record = records.get(child.id);
+      if (record?.kind !== 'family') return true;
+      const family = record.family;
+      if (!family) return false;
+      return !family.parentIds.some(isVirtualId) && !family.childIds.some(isVirtualId);
+    })
+    .map((child) => {
     const record = records.get(child.id)!;
     if (record.kind === 'family') {
       return {
@@ -437,6 +574,7 @@ export async function layoutTree(
       };
     }
 
+    const sourcePerson = sourceData.find((item) => item.id === child.id);
     return {
       id: child.id,
       type: 'person',
@@ -445,14 +583,14 @@ export async function layoutTree(
         kind: 'person',
         label: formatShortName(record.person!.data),
         status: record.person!.data.status,
-          isRootGeneration: record.person!.rels.parents.length === 0,
-          hasChildren: record.person!.rels.children.length > 0,
+        isRootGeneration: sourcePerson ? sourcePerson.rels.parents.length === 0 : false,
+        hasChildren: record.person!.rels.children.length > 0,
       },
       width: PERSON_NODE_WIDTH,
       height: PERSON_NODE_HEIGHT,
     };
   });
 
-  const alignedNodes = alignComponents(nodes, data, rfEdges);
+  const alignedNodes = alignComponents(nodes, sourceData, rfEdges);
   return { nodes: alignedNodes, edges: rfEdges };
 }
