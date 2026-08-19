@@ -41,3 +41,10 @@ export async function fetchCurrentUser(): Promise<User> {
   const { data } = await apiClient.get<User>('/auth/users/me/');
   return data;
 }
+
+export type UpdateUserPayload = Partial<Pick<User, 'first_name' | 'last_name' | 'email'>>;
+
+export async function updateCurrentUser(payload: UpdateUserPayload): Promise<User> {
+  const { data } = await apiClient.patch<User>('/auth/users/me/', payload);
+  return data;
+}

@@ -46,24 +46,46 @@ export function PersonDetailPage() {
 
   return (
     <div className="max-w-3xl w-full">
-      {/* Header */}
-      <div className="flex items-start gap-5 mb-6">
-        {person.photo ? (
-          <img src={person.photo} alt={fullName} className="w-28 h-28 rounded-xl object-cover shadow-sm shrink-0" />
-        ) : (
-          <div className="w-28 h-28 rounded-xl bg-bg-muted flex items-center justify-center text-text-muted text-3xl font-bold shrink-0">
-            {(person.first_name[0] ?? '?').toUpperCase()}
+      {/* Header card: photo, name, status & action buttons */}
+      <div className="card mb-4">
+        <div className="flex items-start gap-5">
+          {person.photo ? (
+            <img src={person.photo} alt={fullName} className="w-28 h-28 rounded-xl object-cover shadow-sm shrink-0" />
+          ) : (
+            <div className="w-28 h-28 rounded-xl bg-bg-muted flex items-center justify-center text-text-muted text-3xl font-bold shrink-0">
+              {(person.first_name[0] ?? '?').toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold mb-1">{fullName || 'Без имени'}</h1>
+            <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
+              person.status === 'alive'
+                ? 'bg-accent-secondary/15 text-accent-secondary'
+                : 'bg-text-muted/15 text-text-muted'
+            }`}>
+              {person.status === 'alive' ? 'Жив(а)' : 'Умер(ла)'}
+            </span>
           </div>
-        )}
-        <div>
-          <h1 className="text-2xl font-bold mb-1">{fullName || 'Без имени'}</h1>
-          <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
-            person.status === 'alive'
-              ? 'bg-accent-secondary/15 text-accent-secondary'
-              : 'bg-text-muted/15 text-text-muted'
-          }`}>
-            {person.status === 'alive' ? 'Жив(а)' : 'Умер(ла)'}
-          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-border">
+          <Link to={`/tree?person=${person.id}`}>
+            <button type="button" className="btn btn-secondary">Показать в дереве</button>
+          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link to={`/person/${person.id}/edit`}>
+                <button type="button" className="btn">Редактировать</button>
+              </Link>
+              <button type="button" className="btn-danger btn" onClick={handleDelete} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-text-muted">
+              <Link to="/login" className="text-accent hover:underline">Войдите</Link>, чтобы редактировать.
+            </p>
+          )}
         </div>
       </div>
 
@@ -212,29 +234,6 @@ export function PersonDetailPage() {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="mt-6">
-        {/* ?person= centres the tree on this person, which is how someone found
-            through the map or a search hit gets back into the tree. */}
-        <Link to={`/tree?person=${person.id}`}>
-          <button type="button" className="btn btn-secondary">Показать в дереве</button>
-        </Link>
-      </div>
-
-      {isAuthenticated ? (
-        <div className="flex gap-3 mt-4">
-          <Link to={`/person/${person.id}/edit`}>
-            <button type="button" className="btn">Редактировать</button>
-          </Link>
-          <button type="button" className="btn-danger btn" onClick={handleDelete} disabled={deleteMutation.isPending}>
-            {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
-          </button>
-        </div>
-      ) : (
-        <p className="text-sm text-text-muted mt-6">
-          <Link to="/login" className="text-accent hover:underline">Войдите</Link>, чтобы редактировать или удалить эту запись.
-        </p>
-      )}
     </div>
   );
 }

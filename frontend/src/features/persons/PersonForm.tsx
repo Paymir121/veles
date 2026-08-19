@@ -165,27 +165,43 @@ export function PersonForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {/* Wizard step indicator */}
-      <div className="wizard-steps">
-        {steps.map((s, i) => (
-          <button
-            key={s}
-            type="button"
-            className="wizard-step-btn"
-            data-active={s === step}
-            onClick={() => setStep(s)}
-          >
-            <span className="wizard-step-num">{i + 1}</span>
-            {STEP_LABELS[s]}
-          </button>
-        ))}
-      </div>
-
-      {validationError && (
-        <div className="rounded-lg bg-error/10 text-error text-sm px-3 py-2">
-          {validationError}
+      {/* Wizard nav card: tabs + action buttons */}
+      <div className="card space-y-4">
+        <div className="wizard-steps">
+          {steps.map((s, i) => (
+            <button
+              key={s}
+              type="button"
+              className="wizard-step-btn"
+              data-active={s === step}
+              onClick={() => setStep(s)}
+            >
+              <span className="wizard-step-num">{i + 1}</span>
+              {STEP_LABELS[s]}
+            </button>
+          ))}
         </div>
-      )}
+
+        <div className="flex items-center border-t border-border pt-3">
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn btn-secondary" onClick={goPrev} disabled={stepIndex === 0}>
+              Назад
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={goNext} disabled={stepIndex >= steps.length - 1}>
+              Далее
+            </button>
+          </div>
+          <button type="submit" className="btn ml-auto" disabled={isSubmitting || isSavingPlace}>
+            {isSavingPlace ? 'Сохраняем место...' : isSubmitting ? 'Сохранение...' : submitLabel}
+          </button>
+        </div>
+
+        {validationError && (
+          <div className="rounded-lg bg-error/10 text-error text-sm px-3 py-2">
+            {validationError}
+          </div>
+        )}
+      </div>
 
       {/* Step: Basics */}
       {step === 'basics' && (
@@ -231,22 +247,6 @@ export function PersonForm({
         />
       )}
 
-      {/* Bottom bar */}
-      <div className="sticky bottom-0 bg-bg/90 backdrop-blur-sm border-t border-border -mx-4 px-4 py-3 sm:-mx-6 sm:px-6 flex items-center gap-3">
-        {stepIndex > 0 && (
-          <button type="button" className="btn btn-secondary" onClick={goPrev}>
-            Назад
-          </button>
-        )}
-        {stepIndex < steps.length - 1 && (
-          <button type="button" className="btn btn-secondary" onClick={goNext}>
-            Далее
-          </button>
-        )}
-        <button type="submit" className="btn ml-auto" disabled={isSubmitting || isSavingPlace}>
-          {isSavingPlace ? 'Сохраняем место...' : isSubmitting ? 'Сохранение...' : submitLabel}
-        </button>
-      </div>
       {hasPlaceDraft && (
         <p className="text-xs text-text-muted -mt-3">
           Новое место «{placeDraft.name || 'без названия'}» будет создано вместе с этой записью.

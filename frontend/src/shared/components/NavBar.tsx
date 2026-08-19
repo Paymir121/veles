@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/useAuthStore';
-import { apiClient } from '@/shared/api/client';
 
 export function NavBar() {
   const user = useAuthStore((state) => state.user);
@@ -9,49 +8,10 @@ export function NavBar() {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleLogout() {
     logout();
     navigate('/login', { replace: true });
-  }
-
-  async function handleImport(file: File) {
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await apiClient.post('/import/', form);
-      const s = res.data;
-      alert(
-        `Импорт завершён:\n` +
-        `Кладбища: создано ${s.burial_places_created}, обновлено ${s.burial_places_updated}\n` +
-        `Персоны: создано ${s.persons_created}, обновлено ${s.persons_updated}\n` +
-        `Союзы: создано ${s.unions_created}, обновлено ${s.unions_updated}`
-      );
-      window.location.reload();
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      const detail = err?.response?.data?.detail || 'Неизвестная ошибка';
-      alert(`Ошибка импорта: ${detail}`);
-    }
-  }
-
-  function triggerImport() {
-    fileInputRef.current?.click();
-  }
-
-  async function handleExport() {
-    try {
-      const res = await apiClient.get('/export/', { responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'veles_export.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert('Не удалось выгрузить данные');
-    }
   }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -69,18 +29,6 @@ export function NavBar() {
     }`;
 
   return (
-    <>
-    <input
-      ref={fileInputRef}
-      type="file"
-      accept=".json"
-      className="hidden"
-      onChange={(e) => {
-        const f = e.target.files?.[0];
-        if (f) handleImport(f);
-        e.target.value = '';
-      }}
-    />
     <header className="sticky top-0 z-30 border-b border-border bg-bg/80 backdrop-blur-sm">
       {/* Desktop bar */}
       <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
@@ -125,12 +73,6 @@ export function NavBar() {
               <NavLink to="/person/new" className={linkClass}>
                 Добавить
               </NavLink>
-              <button type="button" className={linkClass({ isActive: false })} onClick={handleExport}>
-                Выгрузить
-              </button>
-              <button type="button" className={linkClass({ isActive: false })} onClick={triggerImport}>
-                Импорт
-              </button>
             </>
           )}
         </nav>
@@ -139,11 +81,9 @@ export function NavBar() {
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              {user && (
-                <span className="text-sm text-text-muted bg-bg-muted px-3 py-1 rounded-full">
-                  {user.username}
-                </span>
-              )}
+              <NavLink to="/profile" className={linkClass}>
+                {user?.username ?? 'Профиль'}
+              </NavLink>
               <button type="button" className="btn-secondary text-sm" onClick={handleLogout}>
                 Выйти
               </button>
@@ -178,31 +118,22 @@ export function NavBar() {
               <NavLink to="/person/new" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                 Добавить человека
               </NavLink>
-              <button
-                type="button"
-                className={mobileLinkClass({ isActive: false })}
-                onClick={() => { handleExport(); setMenuOpen(false); }}
-              >
-                Выгрузить
-              </button>
-              <button
-                type="button"
-                className={mobileLinkClass({ isActive: false })}
-                onClick={() => { triggerImport(); setMenuOpen(false); }}
-              >
-                Импорт
-              </button>
             </>
           )}
           <div className="border-t border-border mt-1 pt-2">
             {isAuthenticated ? (
+              <>
+              <NavLink to="/profile" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                Профиль{user ? ` (${user.username})` : ''}
+              </NavLink>
               <button
                 type="button"
                 className="btn-ghost w-full text-left text-sm"
                 onClick={() => { handleLogout(); setMenuOpen(false); }}
               >
-                Выйти{user ? ` (${user.username})` : ''}
+                Выйти
               </button>
+              </>
             ) : (
               <>
                 <NavLink to="/login" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
@@ -217,6 +148,5 @@ export function NavBar() {
         </nav>
       )}
     </header>
-    </>
   );
 }

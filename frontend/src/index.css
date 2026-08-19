@@ -112,8 +112,14 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  @media (min-width: 640px) {
+    .card {
+      padding: 24px;
+    }
   }
 
   .input {
@@ -176,6 +182,7 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-height: 0;
   overflow-y: auto;
 }
@@ -195,6 +202,7 @@ body {
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  width: 100%;
 }
 
 .tree-view-container {
@@ -287,6 +295,10 @@ body {
   width: min(95vw, 480px);
   max-height: 80vh;
   background: transparent;
+  margin: auto;
+  position: fixed;
+  inset: 0;
+  height: fit-content;
 }
 
 .person-search-dialog::backdrop {
@@ -372,28 +384,48 @@ body {
 
 .wizard-steps {
   display: flex;
-  gap: 4px;
-  margin-bottom: 24px;
+  gap: 2px;
+  margin-bottom: 16px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.wizard-steps::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .wizard-steps {
+    gap: 4px;
+    margin-bottom: 24px;
+  }
 }
 
 .wizard-step-btn {
   all: unset;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 8px 12px;
   min-height: 44px;
   white-space: nowrap;
   border-radius: 999px;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   color: var(--color-text-muted);
   background: transparent;
   transition: background 0.15s, color 0.15s;
   box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .wizard-step-btn {
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+  }
 }
 
 .wizard-step-btn:hover {

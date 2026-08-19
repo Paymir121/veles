@@ -58,7 +58,9 @@ export function PersonFormPage() {
 
   return (
     <div className="max-w-3xl w-full">
-      <h1 className="text-2xl font-bold mb-6">{isEditMode ? 'Редактирование' : 'Новый человек'}</h1>
+      <div className="card mb-6">
+        <h1 className="text-2xl font-bold">{isEditMode ? 'Редактирование' : 'Новый человек'}</h1>
+      </div>
       <PersonForm
         initialValues={
           isEditMode && existingPerson

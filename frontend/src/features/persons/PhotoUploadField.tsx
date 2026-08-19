@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 interface PhotoUploadFieldProps {
   label: string;
   file: File | null;
@@ -6,19 +8,54 @@ interface PhotoUploadFieldProps {
 }
 
 export function PhotoUploadField({ label, file, existingUrl, onChange }: PhotoUploadFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const previewSrc = file ? URL.createObjectURL(file) : existingUrl;
+
   return (
-    <div className="space-y-2">
-      <label className="field-label">
-        {label} (необязательно)
-        <input
-          className="input text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent/10 file:px-3 file:py-1.5 file:text-accent file:font-medium file:cursor-pointer"
-          type="file"
-          accept="image/*"
-          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+    <div className="space-y-3">
+      <span className="field-label">{label} (необязательно)</span>
+
+      {previewSrc && (
+        <img
+          src={previewSrc}
+          alt={label}
+          className="w-28 h-28 object-cover rounded-lg border border-border"
         />
-      </label>
-      {file && <p className="text-xs text-text-muted">Выбран файл: {file.name}</p>}
-      {!file && existingUrl && <img src={existingUrl} alt={label} className="max-w-[160px] rounded-lg border border-border" />}
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null;
+          onChange(f);
+          e.target.value = '';
+        }}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-secondary text-sm"
+          onClick={() => inputRef.current?.click()}
+        >
+          {previewSrc ? 'Заменить фото' : 'Выбрать фото'}
+        </button>
+        {previewSrc && (
+          <button
+            type="button"
+            className="btn-ghost text-sm text-error"
+            onClick={() => onChange(null)}
+          >
+            Удалить
+          </button>
+        )}
+      </div>
+
+      {file && <p className="text-xs text-text-muted">Файл: {file.name}</p>}
     </div>
   );
 }

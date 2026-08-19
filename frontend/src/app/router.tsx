@@ -3,10 +3,12 @@ import { Layout } from '@/shared/components/Layout';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
 import { RequireAuth } from '@/features/auth/RequireAuth';
+import { HomePage } from '@/features/home/HomePage';
 import { PersonDetailPage } from '@/features/persons/PersonDetailPage';
 import { PersonFormPage } from '@/features/persons/PersonFormPage';
 import { TreePage } from '@/features/tree/TreePage';
 import { MapPage } from '@/features/map/MapPage';
+import { ProfilePage } from '@/features/auth/ProfilePage';
 
 // Route table only - like urls.py. Login/register sit outside Layout
 // entirely. Everything else shares the NavBar/Layout shell, but only
@@ -21,7 +23,7 @@ export function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/tree" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/tree" element={<TreePage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/person/:id" element={<PersonDetailPage />} />
@@ -29,6 +31,7 @@ export function AppRouter() {
         <Route element={<RequireAuth />}>
           <Route path="/person/new" element={<PersonFormPage />} />
           <Route path="/person/:id/edit" element={<PersonFormPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
 
