@@ -302,7 +302,7 @@ function groupBranchRank(
 ): number {
   if (branchRanks.has(groupId)) return branchRanks.get(groupId) as number;
   const person = sourceById?.get(groupId);
-  if (!person || !coreSurnames) return 0;
+  if (!person || !coreSurnames || !sourceById) return 0;
   if (person.rels.parents.length > 0) return 0;
   if (isTrueRoot(person, sourceById)) return 0;
   return coreSurnames.has(person.data.last_name) ? 0 : 1;
@@ -379,8 +379,6 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
 
   const orderedRecords = [...records.values()].sort((a, b) => {
     if (a.kind === 'person' && b.kind === 'person') {
-      const aPerson = a.person as TreeNode;
-      const bPerson = b.person as TreeNode;
       const aGeneration = generations.get(a.id) ?? 0;
       const bGeneration = generations.get(b.id) ?? 0;
       if (aGeneration !== bGeneration) return aGeneration - bGeneration;
@@ -681,74 +679,6 @@ function resolvePersonFamilyGroup(
 const REPACK_SIBLING_GAP = 40;
 const REPACK_BRANCH_GAP = 88;
 const LAYER_Y_TOLERANCE = 55;
-
-function repackFamilyBlocks(
-  nodes: Node<TreeLayoutNodeData>[],
-  sourceData: TreeNode[],
-): void {
-  const families = buildFamilyUnits(sourceData);
-  const sourceById = new Map(sourceData.map((person) => [person.id, person]));
-  const coreSurnames = coreRootSurnames(sourceData);
-  const branchRanks = new Map(
-    families.map((family) => [family.id, familyBranchRank(family, sourceById, coreSurnames)]),
-  );
-  const generations = assignGenerations(sourceData);
-
-  const persons = nodes.filter((node): node is Node<PersonNodeData> => node.data.kind === 'person');
-  const buckets = new Map<number, Node<PersonNodeData>[]>();
-  for (const person of persons) {
-    const bucketKey = Math.round(person.position.y / LAYER_Y_TOLERANCE);
-    const bucket = buckets.get(bucketKey) ?? [];
-    bucket.push(person);
-    buckets.set(bucketKey, bucket);
-  }
-
-  for (const layer of buckets.values()) {
-    const groups = new Map<string, Node<PersonNodeData>[]>();
-    for (const person of layer) {
-      const personGeneration = generations.get(person.id) ?? 0;
-      const groupId = resolvePersonFamilyGroup(
-        person.id,
-        personGeneration,
-        families,
-        generations,
-        sourceById,
-        branchRanks,
-      );
-      const members = groups.get(groupId) ?? [];
-      members.push(person);
-      groups.set(groupId, members);
-    }
-
-    const elkOrder = new Map<string, number>();
-    for (const [groupId, members] of groups) {
-      elkOrder.set(
-        groupId,
-        members.reduce((sum, person) => sum + person.position.x, 0) / members.length,
-      );
-    }
-
-    const orderedGroupIds = [...groups.keys()].sort((leftId, rightId) => {
-      const order = compareFamilyOrder(leftId, rightId, branchRanks, elkOrder, sourceById, coreSurnames);
-      return order !== 0 ? order : leftId.localeCompare(rightId);
-    });
-
-    let cursorX = Math.min(...layer.map((person) => person.position.x));
-    for (const groupId of orderedGroupIds) {
-      const members = groups.get(groupId)!.sort((left, right) => {
-        const leftPerson = sourceById.get(left.id);
-        const rightPerson = sourceById.get(right.id);
-        if (!leftPerson || !rightPerson) return left.position.x - right.position.x;
-        return leftPerson.data.first_name.localeCompare(rightPerson.data.first_name, 'ru');
-      });
-      for (const member of members) {
-        member.position.x = cursorX;
-        cursorX += PERSON_NODE_WIDTH + REPACK_SIBLING_GAP;
-      }
-      cursorX += REPACK_BRANCH_GAP;
-    }
-  }
-}
 
 function centerFamilyNodes(nodes: Node<TreeLayoutNodeData>[], sourceData: TreeNode[]): void {
   const byId = new Map(nodes.map((node) => [node.id, node]));
