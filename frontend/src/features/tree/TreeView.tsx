@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
   Controls,
   Background,
-  useNodesState,
-  useEdgesState,
   useReactFlow,
   ReactFlowProvider,
   type Node,
@@ -13,6 +11,7 @@ import {
   type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import type { TreeNode } from '@/shared/types';
 import { useTree } from './hooks';
 import { layoutTree, type TreeEdgeData, type TreeLayoutNodeData } from './elkLayoutAdapter';
 import { FamilyNode, PersonNode } from './PersonNode';
@@ -24,69 +23,101 @@ interface TreeViewProps {
   showPhotos?: boolean;
 }
 
+interface TreeLayoutState {
+  source: TreeNode[] | null;
+  nodes: Node<TreeLayoutNodeData>[];
+  edges: Edge<TreeEdgeData>[];
+  error: boolean;
+}
+
+const emptyLayout: TreeLayoutState = {
+  source: null,
+  nodes: [],
+  edges: [],
+  error: false,
+};
+
+function applyShowPhotos(
+  nodes: Node<TreeLayoutNodeData>[],
+  showPhotos: boolean,
+): Node<TreeLayoutNodeData>[] {
+  return nodes.map((node) =>
+    node.data.kind === 'person'
+      ? { ...node, data: { ...node.data, showPhotos } }
+      : node,
+  );
+}
+
 function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<TreeLayoutNodeData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<TreeEdgeData>>([]);
-  const [layoutReady, setLayoutReady] = useState(false);
-  const [layoutError, setLayoutError] = useState(false);
+  const [layout, setLayout] = useState<TreeLayoutState>(emptyLayout);
   const { fitView } = useReactFlow();
-  const showPhotosRef = useRef(showPhotos);
 
   useEffect(() => {
-    showPhotosRef.current = showPhotos;
-  }, [showPhotos]);
-
-  useEffect(() => {
-    if (!data || data.length === 0) {
-      setNodes([]);
-      setEdges([]);
-      setLayoutReady(false);
-      setLayoutError(false);
-      return;
-    }
+    if (!data || data.length === 0) return;
 
     let cancelled = false;
-    setLayoutReady(false);
-    setLayoutError(false);
 
     layoutTree(data)
       .then((result) => {
         if (cancelled) return;
-        setNodes(result.nodes.map((node) => (
-          node.data.kind === 'person'
-            ? { ...node, data: { ...node.data, showPhotos: showPhotosRef.current } }
-            : node
-        )));
-        setEdges(result.edges);
-        setLayoutReady(true);
+        setLayout({
+          source: data,
+          nodes: result.nodes,
+          edges: result.edges,
+          error: false,
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setLayoutError(true);
+        setLayout({
+          source: data,
+          nodes: [],
+          edges: [],
+          error: true,
+        });
       });
 
     return () => { cancelled = true; };
   }, [data]);
 
-  useEffect(() => {
-    setNodes((current) => {
-      let changed = false;
-      const next = current.map((node) => {
-        if (node.data.kind === 'person' && node.data.showPhotos !== showPhotos) {
-          changed = true;
-          return { ...node, data: { ...node.data, showPhotos } };
-        }
-        return node;
+  const displayNodes = useMemo(
+    () => applyShowPhotos(layout.nodes, showPhotos),
+    [layout.nodes, showPhotos],
+  );
+
+  const layoutReady = Boolean(
+    data && data.length > 0 && layout.source === data && !layout.error && layout.nodes.length > 0,
+  );
+  const layoutError = Boolean(data && data.length > 0 && layout.source === data && layout.error);
+  const layoutLoading = Boolean(data && data.length > 0 && layout.source !== data);
+
+  const retryLayout = useCallback(() => {
+    if (!data || data.length === 0) return;
+    setLayout((current) => ({ ...current, source: null, error: false }));
+    void layoutTree(data)
+      .then((result) => {
+        setLayout({
+          source: data,
+          nodes: result.nodes,
+          edges: result.edges,
+          error: false,
+        });
+      })
+      .catch(() => {
+        setLayout({
+          source: data,
+          nodes: [],
+          edges: [],
+          error: true,
+        });
       });
-      return changed ? next : current;
-    });
-  }, [showPhotos]);
+  }, [data]);
 
   useEffect(() => {
-    if (!layoutReady || nodes.length === 0) return;
-    if (focusPersonId && nodes.some((n) => n.id === focusPersonId)) {
+    if (!layoutReady || displayNodes.length === 0) return;
+    if (focusPersonId && displayNodes.some((n) => n.id === focusPersonId)) {
       requestAnimationFrame(() => {
         fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.2 });
       });
@@ -95,7 +126,7 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
         fitView({ duration: 300, padding: 0.02 });
       });
     }
-  }, [layoutReady, focusPersonId, fitView, nodes]);
+  }, [layoutReady, focusPersonId, fitView, displayNodes]);
 
   const onNodeClick = useCallback<NodeMouseHandler<Node<TreeLayoutNodeData>>>(
     (_event, node) => {
@@ -129,29 +160,15 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
         <p>Не удалось построить дерево.</p>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => {
-            setLayoutError(false);
-            setLayoutReady(false);
-            void layoutTree(data)
-              .then((result) => {
-                setNodes(result.nodes.map((node) => (
-                  node.data.kind === 'person'
-                    ? { ...node, data: { ...node.data, showPhotos } }
-                    : node
-                )));
-                setEdges(result.edges);
-                setLayoutReady(true);
-              })
-              .catch(() => setLayoutError(true));
-          }}
-        >
+        <button type="button" className="btn btn-secondary" onClick={retryLayout}>
           Повторить
         </button>
       </div>
     );
+  }
+
+  if (layoutLoading) {
+    return <p className="text-text-muted p-6">Построение дерева...</p>;
   }
 
   if (!layoutReady) {
@@ -161,10 +178,10 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   return (
     <div className="tree-view-container">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        nodes={displayNodes}
+        edges={layout.edges}
+        onNodesChange={() => {}}
+        onEdgesChange={() => {}}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
