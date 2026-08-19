@@ -14,7 +14,12 @@ from .serializers import (
     PersonSerializer,
     UnionSerializer,
 )
-from .services import build_burial_place_search_q, build_person_search_q, serialize_tree
+from .services import (
+    build_burial_place_search_q,
+    build_person_search_q,
+    order_person_search,
+    serialize_tree,
+)
 
 SEARCH_RESULT_LIMIT = 50
 
@@ -101,8 +106,9 @@ class SearchView(APIView):
 
         py_logger.debug(f"Search query={query!r} by {request.user}")
 
-        person_matches = Person.objects.select_related("burial_place").filter(
-            build_person_search_q(query)
+        person_matches = order_person_search(
+            Person.objects.select_related("burial_place").filter(build_person_search_q(query)),
+            query,
         )[:SEARCH_RESULT_LIMIT]
 
         place_matches = BurialPlace.objects.filter(

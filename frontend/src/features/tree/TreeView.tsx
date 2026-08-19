@@ -1,42 +1,58 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { TreeNode } from '@/shared/types';
 import { useTree } from './hooks';
 import { createFamilyChart, type FamilyChartHandle } from './familyChartAdapter';
 
-export interface TreeViewHandle {
-  focusOnPerson: (id: string) => void;
+interface TreeViewProps {
+  /** Person the chart is centred on. family-chart draws one bloodline at a
+   *  time around this id, so changing it is how the whole graph stays
+   *  reachable (see PeoplePanel). */
+  centeredId?: string;
 }
 
-export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref) {
+export function TreeView({ centeredId }: TreeViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartHandleRef = useRef<FamilyChartHandle | null>(null);
+  // What the chart currently reflects, so a re-centre doesn't redraw the data
+  // and a data refetch doesn't reset the centre.
+  const appliedDataRef = useRef<TreeNode[] | null>(null);
+  const appliedCenterRef = useRef<string | undefined>(undefined);
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
 
-  useImperativeHandle(ref, () => ({
-    focusOnPerson: (id: string) => {
-      chartHandleRef.current?.focusOnPerson(id);
-    },
-  }));
-
   useEffect(() => {
-    if (!containerRef.current || !data || data.length === 0) return;
+    const container = containerRef.current;
+    if (!container || !data || data.length === 0) return;
 
     if (!chartHandleRef.current) {
       chartHandleRef.current = createFamilyChart({
-        container: containerRef.current,
+        container,
         data,
+        mainId: centeredId,
         onCardClick: (personId) => navigate(`/person/${personId}`),
       });
-    } else {
-      chartHandleRef.current.updateData(data);
+      appliedDataRef.current = data;
+      appliedCenterRef.current = centeredId;
+      return;
     }
-  }, [data, navigate]);
+
+    if (appliedDataRef.current !== data) {
+      chartHandleRef.current.updateData(data);
+      appliedDataRef.current = data;
+    }
+    if (centeredId && centeredId !== appliedCenterRef.current) {
+      chartHandleRef.current.focusOnPerson(centeredId);
+      appliedCenterRef.current = centeredId;
+    }
+  }, [data, navigate, centeredId]);
 
   useEffect(() => {
     return () => {
       chartHandleRef.current?.destroy();
       chartHandleRef.current = null;
+      appliedDataRef.current = null;
+      appliedCenterRef.current = undefined;
     };
   }, []);
 
@@ -61,4 +77,4 @@ export const TreeView = forwardRef<TreeViewHandle>(function TreeView(_props, ref
   }
 
   return <div className="tree-view-container" ref={containerRef} />;
-});
+}

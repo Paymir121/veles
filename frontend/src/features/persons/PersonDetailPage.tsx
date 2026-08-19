@@ -173,8 +173,16 @@ export function PersonDetailPage() {
       )}
 
       {/* Actions */}
+      <div className="mt-6">
+        {/* ?person= centres the tree on this person, which is how someone found
+            through the map or a search hit gets back into the tree. */}
+        <Link to={`/tree?person=${person.id}`}>
+          <button type="button" className="btn btn-secondary">Показать в дереве</button>
+        </Link>
+      </div>
+
       {isAuthenticated ? (
-        <div className="flex gap-3 mt-6">
+        <div className="flex gap-3 mt-4">
           <Link to={`/person/${person.id}/edit`}>
             <button type="button" className="btn">Редактировать</button>
           </Link>

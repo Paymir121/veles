@@ -99,6 +99,22 @@ def test_search_matches_a_four_digit_year(auth_client):
     assert names == {"Пётр", "Мария"}
 
 
+def test_search_ranks_own_name_above_a_maiden_name_match(auth_client):
+    # Both people legitimately match both words, but only one of them *is*
+    # Соколов Пётр -- alphabetical order alone would bury him under Морозова.
+    Person.objects.create(
+        first_name="Ольга",
+        last_name="Морозова",
+        patronymic="Петровна",
+        maiden_name="Соколова",
+        status="alive",
+    )
+    Person.objects.create(first_name="Пётр", last_name="Соколов", status="alive")
+
+    data = auth_client.get("/api/search/?q=Соколов Пётр").json()
+    assert [p["last_name"] for p in data["persons"]] == ["Соколов", "Морозова"]
+
+
 def test_search_multi_word_matches_place_name_plus_city(auth_client):
     BurialPlace.objects.create(name="Ваганьковское кладбище", city="Москва")
     BurialPlace.objects.create(name="Ваганьковское кладбище", city="Казань")

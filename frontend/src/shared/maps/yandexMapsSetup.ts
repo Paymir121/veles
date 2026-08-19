@@ -42,6 +42,52 @@ export const FOCUSED_MAP_ZOOM = 14;
 // Minimal shape of the ymaps.Map instance methods callers actually use, so
 // they don't need to import the full @types/yandex-maps typings package
 // throughout the codebase.
+//
+// setCenter returns a vow.Promise (Yandex's own promise implementation) that
+// resolves once the map has finished moving -- verified in the official JS API
+// 2.1 reference for Map.setCenter. Typed as a thenable rather than a real
+// Promise since vow is not one, and callers only ever `.then()` on it.
 export interface YandexMapInstance {
-  setCenter: (coordinates: [number, number], zoom?: number) => void;
+  setCenter: (
+    coordinates: [number, number],
+    zoom?: number,
+    options?: { duration?: number },
+  ) => { then: (onDone: () => void, onFail?: () => void) => unknown } | undefined;
+}
+
+export interface YandexPlacemarkInstance {
+  balloon: { open: () => void };
+}
+
+export interface YandexClustererInstance {
+  getObjectState: (geoObject: unknown) => {
+    isShown: boolean;
+    isClustered: boolean;
+    cluster?: { state: { set: (key: string, value: unknown) => void } };
+  };
+  balloon: { open: (cluster: unknown) => void };
+}
+
+/**
+ * Opens a placemark's balloon, going through its cluster when the placemark is
+ * currently collapsed into one.
+ *
+ * This exact sequence (getObjectState -> set 'activeObject' -> open the
+ * clusterer's balloon, else open the placemark's own) is the pattern from the
+ * official JS API 2.1 reference for Clusterer.getObjectState -- a clustered
+ * placemark has no balloon of its own to open, so calling
+ * `placemark.balloon.open()` on it silently does nothing.
+ */
+export function openPlacemarkBalloon(
+  clusterer: YandexClustererInstance | null,
+  placemark: YandexPlacemarkInstance | null,
+): void {
+  if (!placemark) return;
+  const state = clusterer?.getObjectState(placemark);
+  if (state?.isClustered && state.cluster) {
+    state.cluster.state.set('activeObject', placemark);
+    clusterer?.balloon.open(state.cluster);
+    return;
+  }
+  placemark.balloon.open();
 }

@@ -1,58 +1,75 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { SearchBar } from '@/features/search/SearchBar';
-import type { SearchSelection } from '@/features/search/types';
-import { findFamilyIslands } from './familyChartAdapter';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { findWidestRootId, formatFullName } from './familyChartAdapter';
+import { groupTreePeople } from './treePeople';
 import { useTree } from './hooks';
-import { TreeView, type TreeViewHandle } from './TreeView';
+import { PeoplePanel } from './PeoplePanel';
+import { TreeView } from './TreeView';
 
 export function TreePage() {
-  const treeViewRef = useRef<TreeViewHandle>(null);
   const { data } = useTree();
-  const islands = useMemo(() => (data ? findFamilyIslands(data) : []), [data]);
-  const [selectedIslandId, setSelectedIslandId] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pickedId, setPickedId] = useState('');
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
-  useEffect(() => {
-    if (islands.length === 0) return;
-    if (!islands.some((island) => island.id === selectedIslandId)) {
-      setSelectedIslandId(islands[0].id);
-    }
-  }, [islands, selectedIslandId]);
+  const groups = useMemo(() => (data ? groupTreePeople(data) : []), [data]);
+  const defaultCenterId = useMemo(() => (data ? (findWidestRootId(data) ?? '') : ''), [data]);
+  const requestedId = searchParams.get('person') ?? '';
 
-  function handleSearchSelect(selection: SearchSelection) {
-    if (selection.kind === 'person') {
-      treeViewRef.current?.focusOnPerson(String(selection.person.id));
-      return;
-    }
-    const firstPerson = selection.burialPlace.persons[0];
-    if (firstPerson) {
-      treeViewRef.current?.focusOnPerson(String(firstPerson.id));
-    }
-  }
+  // Derived, not stored: whoever was picked in the panel wins, otherwise
+  // /tree?person=42 ("Показать в дереве" on a person's page), otherwise the
+  // widest bloodline. Ids that aren't in the current data are ignored, so a
+  // stale link or a deleted person can't leave the tree centred on nothing.
+  const isInTree = (id: string) => Boolean(id) && Boolean(data?.some((node) => node.id === id));
+  const centeredId = isInTree(pickedId)
+    ? pickedId
+    : isInTree(requestedId)
+      ? requestedId
+      : defaultCenterId;
 
-  function handleIslandChange(event: ChangeEvent<HTMLSelectElement>) {
-    const id = event.target.value;
-    setSelectedIslandId(id);
-    treeViewRef.current?.focusOnPerson(id);
+  const centeredName = useMemo(() => {
+    const node = data?.find((person) => person.id === centeredId);
+    return node ? formatFullName(node.data) : '';
+  }, [data, centeredId]);
+
+  function handleSelect(personId: string) {
+    setPickedId(personId);
+    // Drop ?person= once the user navigates on their own, so the URL stops
+    // claiming a centre that is no longer what's shown.
+    if (requestedId) setSearchParams({}, { replace: true });
+    setIsPanelOpen(false);
   }
 
   return (
     <div className="tree-page">
-      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-3 mb-4">
-        <SearchBar onSelect={handleSearchSelect} />
-        {islands.length > 1 && (
-          <label className="field-label sm:min-w-[220px]">
-            Ветка семьи
-            <select className="input w-auto min-w-[220px]" value={selectedIslandId} onChange={handleIslandChange}>
-              {islands.map((island) => (
-                <option key={island.id} value={island.id}>
-                  {island.label}
-                </option>
-              ))}
-            </select>
-          </label>
+      <div className="flex items-center gap-3 mb-3">
+        <button
+          type="button"
+          className="btn btn-secondary text-sm md:hidden"
+          aria-expanded={isPanelOpen}
+          onClick={() => setIsPanelOpen((open) => !open)}
+        >
+          {isPanelOpen ? 'Скрыть список' : 'Люди'}
+        </button>
+        {centeredName && (
+          <p className="text-sm text-text-muted truncate">
+            В центре: <span className="text-text font-medium">{centeredName}</span>
+          </p>
         )}
+        <p className="hidden lg:block text-xs text-text-muted ml-auto shrink-0">
+          Клик по карточке — профиль человека
+        </p>
       </div>
-      <TreeView ref={treeViewRef} />
+
+      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+        <PeoplePanel
+          groups={groups}
+          centeredId={centeredId}
+          onSelect={handleSelect}
+          className={`${isPanelOpen ? 'flex' : 'hidden'} md:flex max-h-[45vh] md:max-h-none`}
+        />
+        <TreeView centeredId={centeredId} />
+      </div>
     </div>
   );
 }

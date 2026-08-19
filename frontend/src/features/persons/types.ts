@@ -52,3 +52,27 @@ export interface BurialPlaceCreatePayload {
   longitude: number | '';
   description: string;
 }
+
+/** A burial place being typed into the person form but not saved yet. Kept as
+ *  strings because it mirrors input values; it's turned into a real place when
+ *  the person is saved (see PersonForm), not by a separate button - a point
+ *  picked on the map used to be silently dropped on submit. */
+export interface BurialPlaceDraft {
+  name: string;
+  city: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+}
+
+export const EMPTY_BURIAL_PLACE_DRAFT: BurialPlaceDraft = {
+  name: '',
+  city: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+};
+
+export function isBurialPlaceDraftFilled(draft: BurialPlaceDraft): boolean {
+  return Object.values(draft).some((value) => value.trim().length > 0);
+}

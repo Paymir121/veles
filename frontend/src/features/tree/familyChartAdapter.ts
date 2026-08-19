@@ -187,12 +187,16 @@ export interface CreateFamilyChartOptions {
   container: HTMLElement;
   data: TreeNode[];
   onCardClick: (personId: string) => void;
+  /** Person to centre the initial view on. Falls back to the widest bloodline
+   *  when omitted or when the id isn't in the data. */
+  mainId?: string;
 }
 
 export function createFamilyChart({
   container,
   data,
   onCardClick,
+  mainId,
 }: CreateFamilyChartOptions): FamilyChartHandle {
   // family-chart's own CSS (imported above) is entirely scoped under a
   // `.f3` selector, and its container-sizing rule specifically needs
@@ -225,7 +229,8 @@ export function createFamilyChart({
 
   chart.setAncestryDepth(MAX_GENERATIONS).setProgenyDepth(MAX_GENERATIONS).setShowSiblingsOfMain(true);
 
-  const rootId = findWidestRootId(data);
+  const rootId =
+    mainId && data.some((person) => person.id === mainId) ? mainId : findWidestRootId(data);
   if (rootId) {
     chart.updateMainId(rootId);
   }

@@ -4,7 +4,7 @@ doesn't map 1:1 onto a single model -- easier to unit test directly.
 import re
 from collections import defaultdict
 
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 
 from logger.logger import error_logger
 
@@ -22,6 +22,10 @@ PERSON_SEARCH_FIELDS = (
     "death_date_text",
 )
 BURIAL_PLACE_SEARCH_FIELDS = ("name", "city", "address")
+
+# Used for ranking only: a word hitting the person's own name counts for more
+# than the same word hitting a secondary field.
+PRIMARY_NAME_FIELDS = ("first_name", "last_name")
 
 # Bounded so a pathological query can't build an unbounded OR tree: every
 # token multiplies into len(fields) * len(spelling variants) conditions.
@@ -62,6 +66,29 @@ def build_person_search_q(query):
             token_q |= Q(birth_date__year=year) | Q(death_date__year=year)
         combined &= token_q
     return combined
+
+
+def order_person_search(queryset, query):
+    """Order matches by how many query words hit the person's own first or last
+    name, then alphabetically.
+
+    Without this, "Соколов Пётр" lists a Морозова whose maiden name is Соколова
+    (a legitimate match on both words) above Соколов Пётр himself, purely
+    because "Морозова" sorts first.
+    """
+    score = None
+    for token in query.split()[:MAX_SEARCH_TOKENS]:
+        matched = Case(
+            When(_token_q(token, PRIMARY_NAME_FIELDS), then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+        score = matched if score is None else score + matched
+    if score is None:
+        return queryset.order_by("last_name", "first_name")
+    return queryset.annotate(name_match_count=score).order_by(
+        "-name_match_count", "last_name", "first_name"
+    )
 
 
 def build_burial_place_search_q(query):

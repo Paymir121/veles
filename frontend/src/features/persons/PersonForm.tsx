@@ -28,7 +28,13 @@ import {
   usePerson,
   usePersons,
 } from './hooks';
-import { EMPTY_PERSON_FORM_VALUES, type PersonFormValues } from './types';
+import {
+  EMPTY_BURIAL_PLACE_DRAFT,
+  EMPTY_PERSON_FORM_VALUES,
+  isBurialPlaceDraftFilled,
+  type BurialPlaceDraft,
+  type PersonFormValues,
+} from './types';
 import type { PersonSubmitFiles } from './api';
 
 const SHORT_TEXT_MAX_LENGTH = 300;
@@ -66,6 +72,13 @@ export function PersonForm({
   const [gravePhoto, setGravePhoto] = useState<File | null>(null);
   const [step, setStep] = useState<WizardStep>('basics');
   const [validationError, setValidationError] = useState('');
+  // A new burial place lives here, next to the person's own fields, and is
+  // created as part of saving the person - see handleSubmit.
+  const [placeDraft, setPlaceDraft] = useState<BurialPlaceDraft>(EMPTY_BURIAL_PLACE_DRAFT);
+  const [isDraftOpen, setIsDraftOpen] = useState(false);
+  const [isSavingPlace, setIsSavingPlace] = useState(false);
+  const ymapsRef = useRef<YMapsApi | null>(null);
+  const createPlaceMutation = useCreateBurialPlace();
 
   function setField<K extends keyof PersonFormValues>(key: K, value: PersonFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -85,20 +98,55 @@ export function PersonForm({
         ? { death_date: '', death_date_text: '', burial_place: '', burial_plot_details: '' }
         : {}),
     }));
-    if (status === 'alive' && step === 'burial') {
-      setStep('basics');
+    if (status === 'alive') {
+      setPlaceDraft(EMPTY_BURIAL_PLACE_DRAFT);
+      setIsDraftOpen(false);
+      if (step === 'burial') setStep('basics');
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const hasPlaceDraft = isDeceased && values.burial_place === '' && isBurialPlaceDraftFilled(placeDraft);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!values.last_name.trim() || !values.first_name.trim()) {
       setValidationError('Заполните фамилию и имя.');
       setStep('basics');
       return;
     }
+
+    let submittedValues = values;
+    if (hasPlaceDraft) {
+      if (!placeDraft.name.trim()) {
+        setValidationError('Укажите название нового места захоронения.');
+        setStep('burial');
+        return;
+      }
+      setIsSavingPlace(true);
+      try {
+        const coordinates = await resolveDraftCoordinates(placeDraft, ymapsRef.current);
+        const created = await createPlaceMutation.mutateAsync({
+          name: placeDraft.name,
+          city: placeDraft.city,
+          address: placeDraft.address,
+          description: '',
+          ...coordinates,
+        });
+        submittedValues = { ...values, burial_place: created.id };
+        setValues(submittedValues);
+        setPlaceDraft(EMPTY_BURIAL_PLACE_DRAFT);
+        setIsDraftOpen(false);
+      } catch {
+        setValidationError('Не удалось сохранить место захоронения. Проверьте название и координаты.');
+        setStep('burial');
+        return;
+      } finally {
+        setIsSavingPlace(false);
+      }
+    }
+
     setValidationError('');
-    onSubmit(values, { photo, gravePhoto });
+    onSubmit(submittedValues, { photo, gravePhoto });
   }
 
   function goNext() {
@@ -160,6 +208,13 @@ export function PersonForm({
           gravePhoto={gravePhoto}
           initialGravePhotoUrl={initialGravePhotoUrl}
           onGravePhotoChange={setGravePhoto}
+          draft={placeDraft}
+          onDraftChange={setPlaceDraft}
+          isDraftOpen={isDraftOpen}
+          onDraftOpenChange={setIsDraftOpen}
+          onYmapsReady={(instance) => {
+            ymapsRef.current = instance;
+          }}
         />
       )}
 
@@ -186,12 +241,47 @@ export function PersonForm({
             Далее
           </button>
         )}
-        <button type="submit" className="btn ml-auto" disabled={isSubmitting}>
-          {isSubmitting ? 'Сохранение...' : submitLabel}
+        <button type="submit" className="btn ml-auto" disabled={isSubmitting || isSavingPlace}>
+          {isSavingPlace ? 'Сохраняем место...' : isSubmitting ? 'Сохранение...' : submitLabel}
         </button>
       </div>
+      {hasPlaceDraft && (
+        <p className="text-xs text-text-muted -mt-3">
+          Новое место «{placeDraft.name || 'без названия'}» будет создано вместе с этой записью.
+        </p>
+      )}
     </form>
   );
+}
+
+/** Coordinates for a place being saved: whatever was picked on the map, or a
+ *  best-effort geocode of the typed address when no point was picked. If the
+ *  geocoder finds nothing (or the maps SDK never loaded, e.g. no API key), the
+ *  place is still created, just without coordinates. */
+async function resolveDraftCoordinates(
+  draft: BurialPlaceDraft,
+  ymapsInstance: YMapsApi | null,
+): Promise<{ latitude: number | ''; longitude: number | '' }> {
+  if (draft.latitude !== '' && draft.longitude !== '') {
+    return { latitude: Number(draft.latitude), longitude: Number(draft.longitude) };
+  }
+  const addressQuery = [draft.address, draft.city].filter((part) => part.trim()).join(', ');
+  if (!ymapsInstance || !addressQuery) return { latitude: '', longitude: '' };
+
+  try {
+    const result = await ymapsInstance.geocode(addressQuery);
+    const found = result.geoObjects.get(0) as unknown as GeocodeResultLike | null;
+    const coords = found?.geometry?.getCoordinates();
+    if (coords) {
+      return {
+        latitude: Number(coords[0].toFixed(6)),
+        longitude: Number(coords[1].toFixed(6)),
+      };
+    }
+  } catch {
+    // Fall through: a place without coordinates is still worth saving.
+  }
+  return { latitude: '', longitude: '' };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -396,13 +486,32 @@ function StepBurial({
   gravePhoto,
   initialGravePhotoUrl,
   onGravePhotoChange,
-}: StepProps & { gravePhoto: File | null; initialGravePhotoUrl?: string | null; onGravePhotoChange: (f: File | null) => void }) {
+  draft,
+  onDraftChange,
+  isDraftOpen,
+  onDraftOpenChange,
+  onYmapsReady,
+}: StepProps & {
+  gravePhoto: File | null;
+  initialGravePhotoUrl?: string | null;
+  onGravePhotoChange: (f: File | null) => void;
+  draft: BurialPlaceDraft;
+  onDraftChange: (draft: BurialPlaceDraft) => void;
+  isDraftOpen: boolean;
+  onDraftOpenChange: (open: boolean) => void;
+  onYmapsReady: (instance: YMapsApi) => void;
+}) {
   return (
     <div className="card space-y-5">
       <h2 className="text-lg font-semibold">Место захоронения</h2>
       <BurialPlaceField
         value={values.burial_place}
         onChange={(id) => setField('burial_place', id)}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        isDraftOpen={isDraftOpen}
+        onDraftOpenChange={onDraftOpenChange}
+        onYmapsReady={onYmapsReady}
       />
       <label className="field-label">
         Детали участка
@@ -531,25 +640,38 @@ function PersonPickerField({ label, value, excludeId, onChange }: PersonPickerFi
 interface BurialPlaceFieldProps {
   value: number | '';
   onChange: (id: number | '') => void;
+  draft: BurialPlaceDraft;
+  onDraftChange: (draft: BurialPlaceDraft) => void;
+  isDraftOpen: boolean;
+  onDraftOpenChange: (open: boolean) => void;
+  onYmapsReady: (instance: YMapsApi) => void;
 }
 
-function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
+// Either picks an existing place or fills in a new one. The new place is NOT
+// saved here: the draft belongs to the form and is created together with the
+// person (see PersonForm.handleSubmit). Before that, a point picked on the map
+// was thrown away unless a separate "create place" button was pressed, which
+// is how a person could end up deceased with no grave and invisible on the map.
+function BurialPlaceField({
+  value,
+  onChange,
+  draft,
+  onDraftChange,
+  isDraftOpen,
+  onDraftOpenChange,
+  onYmapsReady,
+}: BurialPlaceFieldProps) {
   const [query, setQuery] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newCity, setNewCity] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newLat, setNewLat] = useState('');
-  const [newLng, setNewLng] = useState('');
-  const [isGeocoding, setIsGeocoding] = useState(false);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [showManualCoords, setShowManualCoords] = useState(false);
-  const ymapsRef = useRef<YMapsApi | null>(null);
 
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data: selected } = useBurialPlaceOption(value);
   const { data: results = [] } = useBurialPlaceSearch(debouncedQuery);
-  const createMutation = useCreateBurialPlace();
+
+  function setDraftField<K extends keyof BurialPlaceDraft>(key: K, fieldValue: string) {
+    onDraftChange({ ...draft, [key]: fieldValue });
+  }
 
   function handleLocationPicked(location: {
     latitude: number;
@@ -557,63 +679,18 @@ function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
     address?: string;
     city?: string;
   }) {
-    setNewLat(String(location.latitude));
-    setNewLng(String(location.longitude));
-    if (location.address) setNewAddress(location.address);
-    if (location.city) setNewCity(location.city);
+    onDraftChange({
+      ...draft,
+      latitude: String(location.latitude),
+      longitude: String(location.longitude),
+      // A point on the map is authoritative: overwrite whatever the reverse
+      // geocode found over anything typed by hand.
+      address: location.address ?? draft.address,
+      city: location.city ?? draft.city,
+    });
   }
 
-  async function handleCreate() {
-    let latitude: number | '' = newLat === '' ? '' : Number(newLat);
-    let longitude: number | '' = newLng === '' ? '' : Number(newLng);
-
-    if (latitude === '' && longitude === '' && (newAddress.trim() || newCity.trim())) {
-      const ymapsInstance = ymapsRef.current;
-      if (ymapsInstance) {
-        setIsGeocoding(true);
-        try {
-          const q = [newAddress, newCity].filter((part) => part.trim()).join(', ');
-          const result = await ymapsInstance.geocode(q);
-          const found = result.geoObjects.get(0) as unknown as GeocodeResultLike | null;
-          if (found) {
-            const coords = found.geometry?.getCoordinates();
-            if (coords) {
-              latitude = Number(coords[0].toFixed(6));
-              longitude = Number(coords[1].toFixed(6));
-            }
-          }
-        } catch {
-          // Fall through
-        } finally {
-          setIsGeocoding(false);
-        }
-      }
-    }
-
-    createMutation.mutate(
-      {
-        name: newName,
-        city: newCity,
-        address: newAddress,
-        latitude,
-        longitude,
-        description: '',
-      },
-      {
-        onSuccess: (created) => {
-          onChange(created.id);
-          setShowCreateForm(false);
-          setNewName('');
-          setNewCity('');
-          setNewAddress('');
-          setNewLat('');
-          setNewLng('');
-        },
-      },
-    );
-  }
-
-  const hasCoords = newLat !== '' && newLng !== '';
+  const hasCoords = draft.latitude !== '' && draft.longitude !== '';
 
   return (
     <div className="space-y-3">
@@ -658,33 +735,52 @@ function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
       )}
 
       {!selected && (
-        <button type="button" className="btn btn-secondary text-sm" onClick={() => setShowCreateForm((v) => !v)}>
-          {showCreateForm ? 'Отменить' : '+ Добавить новое место'}
+        <button
+          type="button"
+          className="btn btn-secondary text-sm"
+          onClick={() => onDraftOpenChange(!isDraftOpen)}
+        >
+          {isDraftOpen ? 'Отменить новое место' : '+ Добавить новое место'}
         </button>
       )}
 
-      {!selected && showCreateForm && (
+      {!selected && isDraftOpen && (
         <div className="card space-y-4">
+          <p className="text-sm text-text-muted">
+            Место сохранится вместе с человеком — отдельно ничего нажимать не нужно.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="field-label">
               Название
-              <input className="input" value={newName} onChange={(e) => setNewName(e.target.value)} required />
+              <input
+                className="input"
+                value={draft.name}
+                onChange={(e) => setDraftField('name', e.target.value)}
+              />
             </label>
             <label className="field-label">
               Город
-              <input className="input" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
+              <input
+                className="input"
+                value={draft.city}
+                onChange={(e) => setDraftField('city', e.target.value)}
+              />
             </label>
           </div>
           <label className="field-label">
             Адрес
-            <input className="input" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
+            <input
+              className="input"
+              value={draft.address}
+              onChange={(e) => setDraftField('address', e.target.value)}
+            />
           </label>
 
           {/* Map point result */}
           {hasCoords && (
             <div className="text-sm text-text-muted bg-bg-muted rounded-lg px-3 py-2">
-              Координаты: {newLat}, {newLng}
-              {newAddress && <> — {newAddress}</>}
+              Координаты: {draft.latitude}, {draft.longitude}
+              {draft.address && <> — {draft.address}</>}
             </div>
           )}
 
@@ -717,8 +813,8 @@ function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
                   className="input"
                   type="number"
                   step="any"
-                  value={newLat}
-                  onChange={(e) => setNewLat(e.target.value)}
+                  value={draft.latitude}
+                  onChange={(e) => setDraftField('latitude', e.target.value)}
                   placeholder="55.751244"
                 />
               </label>
@@ -728,29 +824,11 @@ function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
                   className="input"
                   type="number"
                   step="any"
-                  value={newLng}
-                  onChange={(e) => setNewLng(e.target.value)}
+                  value={draft.longitude}
+                  onChange={(e) => setDraftField('longitude', e.target.value)}
                   placeholder="37.618423"
                 />
               </label>
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="btn text-sm"
-            onClick={() => void handleCreate()}
-            disabled={!newName || createMutation.isPending || isGeocoding}
-          >
-            {isGeocoding
-              ? 'Определяем координаты...'
-              : createMutation.isPending
-                ? 'Создание...'
-                : 'Создать место'}
-          </button>
-          {createMutation.isError && (
-            <div className="rounded-lg bg-error/10 text-error text-sm px-3 py-2">
-              Не удалось создать место.
             </div>
           )}
         </div>
@@ -759,10 +837,10 @@ function BurialPlaceField({ value, onChange }: BurialPlaceFieldProps) {
       {/* Full-screen map dialog */}
       {mapDialogOpen && (
         <MapPickerDialog
-          latitude={newLat}
-          longitude={newLng}
+          latitude={draft.latitude}
+          longitude={draft.longitude}
           onLocationPicked={handleLocationPicked}
-          onYmapsReady={(instance) => { ymapsRef.current = instance; }}
+          onYmapsReady={onYmapsReady}
           onClose={() => setMapDialogOpen(false)}
         />
       )}

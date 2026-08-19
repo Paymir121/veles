@@ -1,15 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonForm } from './PersonForm';
+
+const { createPlaceMock } = vi.hoisted(() => ({ createPlaceMock: vi.fn() }));
 
 vi.mock('./hooks', () => ({
   usePerson: vi.fn(() => ({ data: undefined })),
   usePersons: vi.fn(() => ({ data: [] })),
   useBurialPlaceSearch: vi.fn(() => ({ data: [] })),
   useBurialPlaceOption: vi.fn(() => ({ data: undefined })),
-  useCreateBurialPlace: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
+  useCreateBurialPlace: vi.fn(() => ({
+    mutateAsync: createPlaceMock,
+    isPending: false,
+    isError: false,
+  })),
 }));
+
+beforeEach(() => {
+  createPlaceMock.mockReset();
+});
 
 vi.mock('@/shared/maps/yandexMapsSetup', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/maps/yandexMapsSetup')>();
@@ -112,5 +122,66 @@ describe('PersonForm - burial place create without a maps key', () => {
     expect(screen.getByLabelText('Широта')).toBeInTheDocument();
     expect(screen.getByLabelText('Долгота')).toBeInTheDocument();
     expect(screen.queryByText(/Кликните на карте/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('PersonForm - a new burial place is saved together with the person', () => {
+  async function fillNewPlace(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText('Фамилия *'), 'Романова');
+    await user.type(screen.getByLabelText('Имя *'), 'Вадим');
+    await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
+    await goToStep(user, 'Захоронение');
+    await user.click(screen.getByRole('button', { name: /Добавить новое место/ }));
+  }
+
+  // The bug this covers: a place typed in (or a point picked on the map) used to
+  // be discarded unless a separate "create place" button was pressed, so the
+  // person was saved with no grave and never showed up on the map.
+  it('creates the place and submits the person with its id', async () => {
+    createPlaceMock.mockResolvedValue({ id: 77 });
+    const handleSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(<PersonForm onSubmit={handleSubmit} />);
+
+    await fillNewPlace(user);
+    await user.type(screen.getByLabelText('Название'), 'Новое кладбище');
+    await user.type(screen.getByLabelText('Широта'), '55.5');
+    await user.type(screen.getByLabelText('Долгота'), '37.5');
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
+    expect(createPlaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Новое кладбище', latitude: 55.5, longitude: 37.5 }),
+    );
+    expect(handleSubmit.mock.calls[0][0].burial_place).toBe(77);
+  });
+
+  it('refuses to submit a place with no name instead of dropping it', async () => {
+    const handleSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(<PersonForm onSubmit={handleSubmit} />);
+
+    await fillNewPlace(user);
+    await user.type(screen.getByLabelText('Широта'), '55.5');
+    await user.type(screen.getByLabelText('Долгота'), '37.5');
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    expect(await screen.findByText(/Укажите название нового места/i)).toBeInTheDocument();
+    expect(createPlaceMock).not.toHaveBeenCalled();
+    expect(handleSubmit).not.toHaveBeenCalled();
+  });
+
+  it('leaves the person unsaved when the place cannot be created', async () => {
+    createPlaceMock.mockRejectedValue(new Error('400'));
+    const handleSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(<PersonForm onSubmit={handleSubmit} />);
+
+    await fillNewPlace(user);
+    await user.type(screen.getByLabelText('Название'), 'Новое кладбище');
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    expect(await screen.findByText(/Не удалось сохранить место захоронения/i)).toBeInTheDocument();
+    expect(handleSubmit).not.toHaveBeenCalled();
   });
 });

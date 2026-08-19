@@ -45,6 +45,41 @@ export interface Person {
   updated_at: string;
 }
 
+// What PersonListSerializer returns: the subset of Person that gets nested
+// inside other payloads (BurialPlace.persons, /api/search/ hits). Kept
+// separate from Person so code reading a nested person can't reach for a
+// field the backend never sent.
+export type PersonSummary = Pick<
+  Person,
+  | 'id'
+  | 'first_name'
+  | 'last_name'
+  | 'patronymic'
+  | 'maiden_name'
+  | 'gender'
+  | 'status'
+  | 'birth_date'
+  | 'birth_date_text'
+  | 'birth_place'
+  | 'death_date'
+  | 'death_date_text'
+  | 'photo'
+>;
+
+// A place without its own nested persons (BurialPlaceBriefSerializer), which
+// is how a place travels inside a person to avoid recursion.
+export type BurialPlaceBrief = Pick<
+  BurialPlace,
+  'id' | 'name' | 'city' | 'latitude' | 'longitude'
+>;
+
+// A /api/search/ person hit: carries its burial place inline so the map can
+// fly to a person's grave without a follow-up request. Note the distinct key
+// name - `burial_place` is a plain id on every other endpoint.
+export interface PersonSearchResult extends PersonSummary {
+  burial_place_detail: BurialPlaceBrief | null;
+}
+
 export interface BurialPlace {
   id: number;
   name: string;
@@ -55,7 +90,7 @@ export interface BurialPlace {
   description: string;
   // Nested + read-only, per the API contract (BurialPlaceViewSet prefetches
   // "persons" so this comes for free without an extra request).
-  persons: Person[];
+  persons: PersonSummary[];
 }
 
 export interface Union {
@@ -100,7 +135,7 @@ export interface TreeNode {
 }
 
 export interface SearchResults {
-  persons: Person[];
+  persons: PersonSearchResult[];
   burial_places: BurialPlace[];
 }
 

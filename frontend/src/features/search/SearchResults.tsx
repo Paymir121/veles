@@ -1,52 +1,82 @@
-import type { BurialPlace, Person } from '@/shared/types';
-import type { SearchSelection } from './types';
+import { GROUP_LABELS, splitHighlight, type SearchItem } from './searchItems';
 
 interface SearchResultsProps {
-  persons: Person[];
-  burialPlaces: BurialPlace[];
-  onSelect: (selection: SearchSelection) => void;
+  items: SearchItem[];
+  query: string;
+  activeIndex: number;
+  optionId: (index: number) => string;
+  onSelect: (item: SearchItem) => void;
+  onHover: (index: number) => void;
 }
 
-export function SearchResults({ persons, burialPlaces, onSelect }: SearchResultsProps) {
-  if (persons.length === 0 && burialPlaces.length === 0) {
-    return <p className="text-sm text-text-muted px-2 py-1">Ничего не найдено.</p>;
-  }
-
+function Highlighted({ text, query }: { text: string; query: string }) {
   return (
-    <div>
-      {persons.length > 0 && (
-        <div className="search-results-group">
-          <h4>Люди</h4>
-          <ul>
-            {persons.map((person) => (
-              <li key={`person-${person.id}`}>
-                <button type="button" onClick={() => onSelect({ kind: 'person', person })}>
-                  {person.last_name} {person.first_name} {person.patronymic}
-                  {person.birth_place && <span className="text-text-muted text-xs ml-1"> · {person.birth_place}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+    <>
+      {splitHighlight(text, query).map((part, index) =>
+        part.match ? (
+          <mark key={index} className="bg-accent/20 text-text rounded-sm px-0.5">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
       )}
+    </>
+  );
+}
 
-      {burialPlaces.length > 0 && (
-        <div className="search-results-group">
-          <h4>Места захоронения</h4>
-          <ul>
-            {burialPlaces.map((place) => (
-              <li key={`burial-place-${place.id}`}>
-                <button
-                  type="button"
-                  onClick={() => onSelect({ kind: 'burial_place', burialPlace: place })}
-                >
-                  {place.name} {place.city && <span className="text-text-muted text-xs ml-1">· {place.city}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+// Presentational listbox. Both result groups come in as one flat, already
+// ordered list (see buildSearchItems) because keyboard navigation has to treat
+// them as a single sequence - the group headings are drawn from the items
+// themselves rather than by rendering two separate lists.
+export function SearchResults({
+  items,
+  query,
+  activeIndex,
+  optionId,
+  onSelect,
+  onHover,
+}: SearchResultsProps) {
+  return (
+    <ul role="listbox" aria-label="Результаты поиска" className="list-none m-0 p-0">
+      {items.map((item, index) => {
+        const isFirstOfGroup = index === 0 || items[index - 1].group !== item.group;
+        return (
+          <li key={item.key}>
+            {isFirstOfGroup && (
+              <div
+                role="presentation"
+                className="px-2 pt-2 pb-1 text-xs uppercase tracking-wide text-text-muted"
+              >
+                {GROUP_LABELS[item.group]}
+              </div>
+            )}
+            <div
+              role="option"
+              id={optionId(index)}
+              aria-selected={index === activeIndex}
+              data-active={index === activeIndex}
+              className="px-2 py-2 rounded-lg cursor-pointer data-[active=true]:bg-bg-muted"
+              onMouseEnter={() => onHover(index)}
+              // mousedown, not click: the input's blur handler closes the
+              // dropdown, and blur fires before click would.
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onSelect(item);
+              }}
+            >
+              <div className="text-sm text-text">
+                <Highlighted text={item.title} query={query} />
+              </div>
+              {item.subtitle && (
+                <div className="text-xs text-text-muted">
+                  <Highlighted text={item.subtitle} query={query} />
+                </div>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
