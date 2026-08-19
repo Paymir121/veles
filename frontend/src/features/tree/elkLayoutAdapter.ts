@@ -54,6 +54,37 @@ interface BuiltGraph {
   records: Map<string, LayoutRecord>;
 }
 
+function assignGenerations(data: TreeNode[]): Map<string, number> {
+  const byId = new Map(data.map((node) => [node.id, node]));
+  const memo = new Map<string, number>();
+
+  function generationOf(id: string, visiting: Set<string>): number {
+    if (memo.has(id)) return memo.get(id) as number;
+    if (visiting.has(id)) return 0;
+    const person = byId.get(id);
+    if (!person || person.rels.parents.length === 0) {
+      memo.set(id, 0);
+      return 0;
+    }
+
+    visiting.add(id);
+    const generation = Math.max(
+      ...person.rels.parents
+        .filter((parentId) => byId.has(parentId))
+        .map((parentId) => generationOf(parentId, visiting) + 1),
+      0,
+    );
+    visiting.delete(id);
+    memo.set(id, generation);
+    return generation;
+  }
+
+  for (const node of data) {
+    generationOf(node.id, new Set());
+  }
+  return memo;
+}
+
 function getPersonVisualKind(person: TreeNode): 'leaf' | 'branch' | 'root' {
   const isRootGeneration = person.rels.parents.length === 0;
   if (person.data.status === 'alive') return 'leaf';
@@ -109,6 +140,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
   const edgeSet = new Set<string>();
   const families = buildFamilyUnits(data);
   const byId = new Map(data.map((person) => [person.id, person]));
+  const generations = assignGenerations(data);
 
   for (const person of data) {
     records.set(person.id, {
@@ -130,7 +162,33 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
     });
   }
 
-  for (const record of records.values()) {
+  const orderedRecords = [...records.values()].sort((a, b) => {
+    if (a.kind === 'person' && b.kind === 'person') {
+      const aPerson = a.person as TreeNode;
+      const bPerson = b.person as TreeNode;
+      const aGeneration = generations.get(a.id) ?? 0;
+      const bGeneration = generations.get(b.id) ?? 0;
+      if (aGeneration !== bGeneration) return aGeneration - bGeneration;
+
+      const aParentsKey = aPerson.rels.parents.join('+');
+      const bParentsKey = bPerson.rels.parents.join('+');
+      if (aParentsKey !== bParentsKey) return aParentsKey.localeCompare(bParentsKey);
+
+      return aPerson.data.last_name.localeCompare(bPerson.data.last_name, 'ru')
+        || aPerson.data.first_name.localeCompare(bPerson.data.first_name, 'ru');
+    }
+
+    if (a.kind === 'family' && b.kind === 'family') {
+      const aChildGeneration = Math.min(...(a.family?.childIds.map((id) => generations.get(id) ?? 0) ?? [0]));
+      const bChildGeneration = Math.min(...(b.family?.childIds.map((id) => generations.get(id) ?? 0) ?? [0]));
+      if (aChildGeneration !== bChildGeneration) return aChildGeneration - bChildGeneration;
+      return (a.family?.parentIds.join('+') ?? '').localeCompare(b.family?.parentIds.join('+') ?? '');
+    }
+
+    return a.kind === 'person' ? -1 : 1;
+  });
+
+  for (const record of orderedRecords) {
     children.push({
       id: record.id,
       width: record.width,
@@ -212,6 +270,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         'elk.spacing.edgeNode': '28',
         'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
         'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+        'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
         'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
         'elk.separateConnectedComponents': 'true',
         'elk.spacing.componentComponent': '160',
