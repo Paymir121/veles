@@ -645,10 +645,11 @@ function PersonSearchDialog({ title, genderFilter, excludeId, onSelect, onClose 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
+  const hasQuery = debouncedQuery.trim().length > 0;
   const { data: results = [], isLoading } = usePersons(
-    debouncedQuery.trim()
+    hasQuery
       ? { search: debouncedQuery.trim(), ...(genderFilter ? { gender: genderFilter } : {}) }
-      : undefined,
+      : { ...(genderFilter ? { gender: genderFilter } : {}) },
   );
   const options = results.filter((p) => p.id !== excludeId);
 
@@ -794,6 +795,27 @@ function BurialPlaceField({
           />
         )}
       </label>
+
+      {selected && selected.persons && selected.persons.length > 0 && (
+        <div className="rounded-lg border border-border bg-bg-muted px-4 py-3">
+          <p className="text-xs text-text-muted mb-2">Здесь захоронены:</p>
+          <ul className="space-y-1">
+            {selected.persons.map((person) => (
+              <li key={person.id} className="text-sm">
+                <a href={`/person/${person.id}`} className="text-accent hover:underline">
+                  {[person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' ')}
+                </a>
+                {person.birth_date && (
+                  <span className="text-text-muted ml-2 text-xs">
+                    {person.birth_date}
+                    {person.death_date && ` — ${person.death_date}`}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {!selected && debouncedQuery.trim() && results.length > 0 && (
         <ul className="picker-results">

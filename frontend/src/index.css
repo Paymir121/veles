@@ -259,6 +259,29 @@ body {
   }
 }
 
+/* ── Map balloon ───────────────────────────────────────────────────────── */
+
+.map-balloon-persons {
+  margin: 0;
+  padding: 0 0 0 1.2em;
+  list-style: disc;
+}
+
+.map-balloon-persons li {
+  padding: 2px 0;
+}
+
+@media (min-width: 640px) {
+  .map-balloon-persons {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .map-balloon-persons li {
+    padding: 3px 0;
+  }
+}
+
 /* ── Map picker dialog ──────────────────────────────────────────────────── */
 
 .map-picker-dialog {

@@ -156,7 +156,12 @@ export function MapView({ focus }: MapViewProps) {
                   balloonContentHeader: escapeHtmlForBalloon(place.name),
                   balloonContentBody: buildBalloonContent(place),
                 }}
-                options={{ preset: 'islands#violetIcon' }}
+                options={{
+                  preset: 'islands#violetIcon',
+                  balloonAutoPan: true,
+                  balloonMaxWidth: window.innerWidth >= 640 ? 400 : 250,
+                  balloonPanelMaxMapArea: 0,
+                }}
                 instanceRef={(instance: unknown) => {
                   if (instance) {
                     placemarkRefs.current.set(place.id, instance as YandexPlacemarkInstance);
