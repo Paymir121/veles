@@ -10,13 +10,14 @@ import {
   ReactFlowProvider,
   type Node,
   type Edge,
+  type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTree } from './hooks';
-import { layoutTree, type PersonNodeData } from './elkLayoutAdapter';
-import { PersonNode } from './PersonNode';
+import { layoutTree, type TreeLayoutNodeData } from './elkLayoutAdapter';
+import { FamilyNode, PersonNode } from './PersonNode';
 
-const nodeTypes = { person: PersonNode };
+const nodeTypes = { person: PersonNode, family: FamilyNode };
 
 interface TreeViewProps {
   focusPersonId?: string;
@@ -25,7 +26,7 @@ interface TreeViewProps {
 function TreeViewInner({ focusPersonId }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<PersonNodeData>>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<TreeLayoutNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const { fitView } = useReactFlow();
@@ -46,17 +47,18 @@ function TreeViewInner({ focusPersonId }: TreeViewProps) {
     if (!layoutReady || nodes.length === 0) return;
     if (focusPersonId && nodes.some((n) => n.id === focusPersonId)) {
       requestAnimationFrame(() => {
-        fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.3 });
+        fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.2 });
       });
     } else {
       requestAnimationFrame(() => {
-        fitView({ duration: 300, padding: 0.1 });
+        fitView({ duration: 300, padding: 0.02 });
       });
     }
   }, [layoutReady, focusPersonId, fitView, nodes]);
 
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback<NodeMouseHandler<Node<TreeLayoutNodeData>>>(
+    (_event, node) => {
+      if (node.data.kind !== 'person') return;
       navigate(`/person/${node.id}`);
     },
     [navigate],

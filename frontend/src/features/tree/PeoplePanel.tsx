@@ -18,16 +18,40 @@ interface PeoplePanelProps {
 // and picking someone re-centres the chart on them.
 export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
-  const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
   const visibleGroups = useMemo(() => filterTreePeople(groups, query), [groups, query]);
   const total = countPeople(groups);
   const shown = countPeople(visibleGroups);
   const showGroupLabels = groups.length > 1;
 
+  // Per-group manual overrides: value means "is collapsed".
+  // Defaults are derived from `centeredId` (and the overall "multiple groups" mode).
+  const [groupCollapsedOverride, setGroupCollapsedOverride] = useState<Record<string, boolean>>({});
+
+  const centeredGroupId = useMemo(() => {
+    if (!centeredId || !showGroupLabels) return undefined;
+    return groups.find((g) => g.people.some((p) => p.id === centeredId))?.id;
+  }, [centeredId, groups, showGroupLabels]);
+
+  function isGroupCollapsed(groupId: string): boolean {
+    if (!showGroupLabels) return false;
+    const defaultCollapsed = centeredGroupId ? groupId !== centeredGroupId : true;
+    const override = groupCollapsedOverride[groupId];
+    return override ?? defaultCollapsed;
+  }
+
   function toggleGroup(groupId: string) {
-    setCollapsedGroupIds((prev) => (
-      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
-    ));
+    const prevCollapsed = isGroupCollapsed(groupId);
+    const nextCollapsed = !prevCollapsed;
+
+    const defaultCollapsed = centeredGroupId ? groupId !== centeredGroupId : true;
+    setGroupCollapsedOverride((prev) => {
+      if (nextCollapsed === defaultCollapsed) {
+        // Revert to default behaviour to keep overrides minimal.
+        const { [groupId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [groupId]: nextCollapsed };
+    });
   }
 
   return (
@@ -60,16 +84,16 @@ export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: Pe
                 <button
                   type="button"
                   className="people-group-toggle"
-                  aria-expanded={!collapsedGroupIds.includes(group.id)}
+                  aria-expanded={!isGroupCollapsed(group.id)}
                   onClick={() => toggleGroup(group.id)}
                 >
                   <span>{group.label} · {group.people.length}</span>
-                  <span>{collapsedGroupIds.includes(group.id) ? 'Показать' : 'Скрыть'}</span>
+                  <span>{isGroupCollapsed(group.id) ? 'Показать' : 'Скрыть'}</span>
                 </button>
               )}
               <ul
                 className="list-none m-0 p-0"
-                hidden={showGroupLabels && collapsedGroupIds.includes(group.id)}
+                hidden={showGroupLabels && isGroupCollapsed(group.id)}
               >
                 {group.people.map((person) => (
                   <li key={person.id}>
