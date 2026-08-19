@@ -1,11 +1,13 @@
 import { apiClient } from '@/shared/api/client';
 import type { TreeNode } from '@/shared/types';
 
-// GET /api/tree/ is explicitly documented as unpaginated - it returns the
-// raw array in exactly the shape family-chart expects, no client-side
-// reshaping needed (see familyChartAdapter.ts, the one place that touches
-// family-chart's actual API).
+export interface TreeGraph {
+  nodes: TreeNode[];
+}
+
+// GET /api/tree/ is unpaginated: a dict with people already placed on the
+// grid (integer x/y cells). This helper unwraps `nodes` for the rest of the UI.
 export async function fetchTree(): Promise<TreeNode[]> {
-  const { data } = await apiClient.get<TreeNode[]>('/tree/', { timeout: 15_000 });
-  return data;
+  const { data } = await apiClient.get<TreeGraph>('/tree/', { timeout: 15_000 });
+  return data.nodes;
 }

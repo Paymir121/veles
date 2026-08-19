@@ -97,8 +97,11 @@ class UnionViewSet(ModelViewSet):
 
 
 class TreeView(APIView):
-    """Read-only, whole-graph, family-chart-shaped. Deliberately
-    unpaginated -- the tree UI needs the entire graph in one response.
+    """Read-only, whole-graph. Deliberately unpaginated -- the tree UI needs
+    the entire graph in one response.
+
+    Shape: ``{"nodes": [{id, data, rels, x, y}, ...]}``. ``x``/``y`` are
+    integer grid cells; the frontend only scales them to pixels.
 
     Public on purpose: viewing the tree (and the map, see BurialPlaceViewSet
     above) doesn't require an account. Since this endpoint already exposes

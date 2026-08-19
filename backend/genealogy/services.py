@@ -9,6 +9,7 @@ from django.db.models import Case, IntegerField, Q, Value, When
 from logger.logger import error_logger
 
 from .models import Person, Union
+from .tree_layout import layout_tree
 
 # Free-text fields matched by /api/search/. The *_date_text fields are here
 # (not only the real date fields) so "1920" also finds "около 1920".
@@ -102,12 +103,14 @@ def build_burial_place_search_q(query):
 
 @error_logger()
 def serialize_tree(request):
-    """Build the full family graph in family-chart's node shape.
+    """Build the full family graph plus grid cells.
 
-    Exactly 2 queries regardless of family size: one full Person scan, one
-    full Union scan. `persons` is a QuerySet iterated twice below; Django
-    caches the results after the first full iteration, so the second loop
-    reuses that cache instead of re-querying.
+    Returns ``{"nodes": [...]}``. Each node keeps the family-chart
+    ``id/data/rels`` shape and adds integer ``x``/``y`` in grid cells
+    (not pixels). Exactly 2 queries regardless of family size: one full
+    Person scan, one full Union scan. `persons` is a QuerySet iterated
+    twice below; Django caches the results after the first full
+    iteration, so the second loop reuses that cache instead of re-querying.
     """
     persons = Person.objects.all()
 
@@ -152,4 +155,9 @@ def serialize_tree(request):
                 },
             }
         )
-    return nodes
+    positions = layout_tree(nodes)
+    for node in nodes:
+        x, y = positions.get(node["id"], (0, 0))
+        node["x"] = x
+        node["y"] = y
+    return {"nodes": nodes}

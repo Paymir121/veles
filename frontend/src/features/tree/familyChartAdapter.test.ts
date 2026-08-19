@@ -69,6 +69,8 @@ function makeNode(
     id,
     data: makeTreeNodeData(data),
     rels: { parents: [], spouses: [], children: [], ...rels },
+    x: 0,
+    y: 0,
   };
 }
 

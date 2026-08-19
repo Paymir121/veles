@@ -39,7 +39,9 @@ def test_tree_shape(auth_client, small_family):
     response = auth_client.get("/api/tree/")
     assert response.status_code == 200
 
-    nodes = {node["id"]: node for node in response.json()}
+    payload = response.json()
+    assert set(payload.keys()) == {"nodes"}
+    nodes = {node["id"]: node for node in payload["nodes"]}
     assert set(nodes.keys()) == {str(father.pk), str(mother.pk), str(child.pk)}
 
     child_node = nodes[str(child.pk)]
@@ -51,18 +53,23 @@ def test_tree_shape(auth_client, small_family):
     assert father_node["rels"]["parents"] == []
     assert father_node["rels"]["spouses"] == [str(mother.pk)]
     assert father_node["rels"]["children"] == [str(child.pk)]
+    assert isinstance(father_node["x"], int)
+    assert isinstance(father_node["y"], int)
 
     mother_node = nodes[str(mother.pk)]
     assert mother_node["rels"]["parents"] == []
     assert mother_node["rels"]["spouses"] == [str(father.pk)]
     assert mother_node["rels"]["children"] == [str(child.pk)]
+    assert father_node["y"] == mother_node["y"]
+    assert child_node["y"] < father_node["y"]
+    assert abs(father_node["x"] - mother_node["x"]) == 2
 
 
 def test_tree_gender_unknown_falls_back_to_M_but_keeps_actual(auth_client):
     Person.objects.create(first_name="Sasha", last_name="Neizvestny", status="alive", gender="U")
 
     response = auth_client.get("/api/tree/")
-    node = response.json()[0]
+    node = response.json()["nodes"][0]
     assert node["data"]["gender"] == "M"
     assert node["data"]["gender_actual"] == "U"
 
@@ -73,7 +80,7 @@ def test_tree_avatar_is_relative_media_path(auth_client):
     person.save(update_fields=["photo"])
 
     response = auth_client.get("/api/tree/")
-    node = next(item for item in response.json() if item["id"] == str(person.pk))
+    node = next(item for item in response.json()["nodes"] if item["id"] == str(person.pk))
     assert node["data"]["avatar"] == person.photo.url
     assert node["data"]["avatar"].startswith("/media/")
 

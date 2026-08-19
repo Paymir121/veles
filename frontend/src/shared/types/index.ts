@@ -107,8 +107,8 @@ export interface Union {
   notes: string;
 }
 
-// Shape returned by GET /api/tree/, matching the family-chart library's data
-// format exactly (id/data/rels) - see features/tree/familyChartAdapter.ts.
+// Shape returned by GET /api/tree/ nodes[]. x/y are integer grid cells
+// computed on the backend; the frontend only scales them to pixels.
 export interface TreeNodeData {
   first_name: string;
   last_name: string;
@@ -134,6 +134,10 @@ export interface TreeNode {
   id: string;
   data: TreeNodeData;
   rels: TreeNodeRels;
+  /** Grid column from GET /api/tree/. */
+  x: number;
+  /** Grid row from GET /api/tree/. Younger generations have smaller y. */
+  y: number;
 }
 
 export interface SearchResults {
@@ -150,10 +154,10 @@ export interface User {
   linked_person_id: number | null;
 }
 
-// DRF's default list pagination shape. /api/tree/ and /api/search/ are
-// explicitly documented as NOT using this (tree is a raw array, search is a
-// plain {persons, burial_places} object) - only /api/persons/,
-// /api/burial-places/ and /api/unions/ list endpoints may be paginated.
+// DRF's default list pagination shape. /api/tree/ is ``{nodes: [...]}``
+// (unpaginated), /api/search/ is a plain {persons, burial_places} object -
+// only /api/persons/, /api/burial-places/ and /api/unions/ list endpoints
+// may be paginated.
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;

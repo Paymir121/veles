@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
-import { assignAlignedGenerations, CELL_W, layoutTree } from './elkLayoutAdapter';
+import { CELL_H, CELL_W, layoutTree } from './elkLayoutAdapter';
 
 function makeNode(
   id: string,
   data: Partial<TreeNodeData>,
   rels: Partial<TreeNode['rels']> = {},
+  cell: { x: number; y: number } = { x: 0, y: 0 },
 ): TreeNode {
   return {
     id,
@@ -27,26 +28,36 @@ function makeNode(
       children: [],
       ...rels,
     },
+    x: cell.x,
+    y: cell.y,
   };
 }
 
 describe('layoutTree', () => {
-  it('creates separate family connectors for half-siblings with different fathers', async () => {
+  it('scales backend grid cells to pixels', () => {
     const tree = [
-      makeNode('father-a', { first_name: 'Андрей' }, { children: ['child-a'] }),
-      makeNode('father-b', { first_name: 'Борис' }, { children: ['child-b'] }),
+      makeNode('a', { first_name: 'Анна' }, {}, { x: 2, y: 4 }),
+    ];
+    const { nodes } = layoutTree(tree);
+    expect(nodes[0].position).toEqual({ x: 2 * CELL_W, y: 4 * CELL_H });
+  });
+
+  it('creates separate family connectors for half-siblings with different fathers', () => {
+    const tree = [
+      makeNode('father-a', { first_name: 'Андрей' }, { children: ['child-a'] }, { x: 0, y: 2 }),
+      makeNode('father-b', { first_name: 'Борис' }, { children: ['child-b'] }, { x: 4, y: 2 }),
       makeNode('mother', { first_name: 'Мария', gender: 'F', gender_actual: 'F' }, {
         children: ['child-a', 'child-b'],
-      }),
+      }, { x: 2, y: 2 }),
       makeNode('child-a', { first_name: 'Анна', gender: 'F', gender_actual: 'F' }, {
         parents: ['father-a', 'mother'],
-      }),
+      }, { x: 0, y: 0 }),
       makeNode('child-b', { first_name: 'Вера', gender: 'F', gender_actual: 'F' }, {
         parents: ['father-b', 'mother'],
-      }),
+      }, { x: 4, y: 0 }),
     ];
 
-    const { nodes, edges } = await layoutTree(tree);
+    const { nodes, edges } = layoutTree(tree);
     const familyNodes = nodes.filter((node) => node.data.kind === 'family');
 
     expect(familyNodes).toHaveLength(2);
@@ -56,103 +67,5 @@ describe('layoutTree', () => {
     ]);
     expect(edges.some((edge) => edge.source === 'mother' && edge.target === 'family:father-a+mother')).toBe(true);
     expect(edges.some((edge) => edge.source === 'mother' && edge.target === 'family:father-b+mother')).toBe(true);
-  });
-
-  it('aligns unrelated root people on the same baseline', async () => {
-    const tree = [
-      makeNode('root-a', { first_name: 'Алексей' }, { children: ['child-a'] }),
-      makeNode('child-a', { first_name: 'Павел' }, { parents: ['root-a'] }),
-      makeNode('root-b', { first_name: 'Борис' }),
-    ];
-
-    const { nodes } = await layoutTree(tree);
-    const rootA = nodes.find((node) => node.id === 'root-a');
-    const rootB = nodes.find((node) => node.id === 'root-b');
-
-    expect(rootA?.position.y).toBe(rootB?.position.y);
-  });
-
-  it('puts a spouse without parents on the same generation as their partner', () => {
-    const tree = [
-      makeNode('root', { first_name: 'Валерий', last_name: 'Логинов' }, { children: ['sergey'] }),
-      makeNode('sergey', { first_name: 'Сергей', last_name: 'Логинов' }, {
-        parents: ['root'],
-        spouses: ['svetlana'],
-        children: ['denis'],
-      }),
-      makeNode('svetlana', { first_name: 'Светлана', last_name: 'Логинова', gender: 'F', gender_actual: 'F' }, {
-        spouses: ['sergey'],
-        children: ['denis'],
-      }),
-      makeNode('denis', { first_name: 'Денис', last_name: 'Логинов' }, {
-        parents: ['sergey', 'svetlana'],
-      }),
-    ];
-
-    const generations = assignAlignedGenerations(tree);
-    expect(generations.get('sergey')).toBe(generations.get('svetlana'));
-    expect(generations.get('denis')).toBe((generations.get('sergey') ?? 0) + 1);
-  });
-
-  it('keeps co-parents on one row and children one grid row above', async () => {
-    const tree = [
-      makeNode('father', { first_name: 'Вадим', last_name: 'Романов' }, { children: ['nikita', 'anton'] }),
-      makeNode('mother', { first_name: 'Светлана', last_name: 'Романова', gender: 'F', gender_actual: 'F' }, {
-        children: ['nikita', 'anton'],
-      }),
-      makeNode('nikita', { first_name: 'Никита', last_name: 'Романов' }, { parents: ['father', 'mother'] }),
-      makeNode('anton', { first_name: 'Антон', last_name: 'Романов' }, { parents: ['father', 'mother'] }),
-    ];
-
-    const { nodes } = await layoutTree(tree);
-    const father = nodes.find((node) => node.id === 'father');
-    const mother = nodes.find((node) => node.id === 'mother');
-    const nikita = nodes.find((node) => node.id === 'nikita');
-    const anton = nodes.find((node) => node.id === 'anton');
-
-    expect(father?.position.y).toBe(mother?.position.y);
-    expect(nikita?.position.y).toBe(anton?.position.y);
-    expect(nikita?.position.y).toBeLessThan(father?.position.y ?? 0);
-
-    const siblingGap = Math.abs((nikita?.position.x ?? 0) - (anton?.position.x ?? 0)) - CELL_W;
-    expect(siblingGap).toBe(CELL_W);
-
-    // Natural name order is Антон, Никита; father-left/mother-right mirrors it.
-    expect(nikita?.position.x).toBeLessThan(anton?.position.x ?? 0);
-    expect(father?.position.x).toBeLessThan(mother?.position.x ?? 0);
-  });
-
-  it('does not mirror children of a single parent', async () => {
-    const tree = [
-      makeNode('anton', { first_name: 'Антон' }, { children: ['darya', 'sofia'] }),
-      makeNode('darya', { first_name: 'Дарья', gender: 'F', gender_actual: 'F', birth_date: '2018-01-01' }, {
-        parents: ['anton'],
-      }),
-      makeNode('sofia', { first_name: 'Софья', gender: 'F', gender_actual: 'F', birth_date: '2020-01-01' }, {
-        parents: ['anton'],
-      }),
-    ];
-
-    const { nodes } = await layoutTree(tree);
-    const darya = nodes.find((node) => node.id === 'darya');
-    const sofia = nodes.find((node) => node.id === 'sofia');
-    expect(darya?.position.x).toBeLessThan(sofia?.position.x ?? 0);
-  });
-
-  it('keeps siblings on one row even if only one of them has children', async () => {
-    const tree = [
-      makeNode('father', { first_name: 'Вадим' }, { children: ['nikita', 'anton'] }),
-      makeNode('mother', { first_name: 'Светлана', gender: 'F', gender_actual: 'F' }, { children: ['nikita', 'anton'] }),
-      makeNode('nikita', { first_name: 'Никита' }, { parents: ['father', 'mother'] }),
-      makeNode('anton', { first_name: 'Антон' }, { parents: ['father', 'mother'], children: ['darya'] }),
-      makeNode('darya', { first_name: 'Дарья', gender: 'F', gender_actual: 'F' }, { parents: ['anton'] }),
-    ];
-
-    const { nodes } = await layoutTree(tree);
-    const nikita = nodes.find((node) => node.id === 'nikita');
-    const anton = nodes.find((node) => node.id === 'anton');
-    expect(nikita?.position.y).toBe(anton?.position.y);
-    const gap = Math.abs((nikita?.position.x ?? 0) - (anton?.position.x ?? 0));
-    expect(gap).toBeLessThanOrEqual(CELL_W * 4);
   });
 });
