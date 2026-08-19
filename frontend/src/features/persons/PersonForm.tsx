@@ -1074,7 +1074,11 @@ function MapPickerContent({
 
   const placeableLocations = useMemo(
     () => allPlaces.filter(
-      (p) => Number.isFinite(Number(p.latitude)) && Number.isFinite(Number(p.longitude)),
+      (p) =>
+        Number.isFinite(Number(p.latitude)) &&
+        Number.isFinite(Number(p.longitude)) &&
+        p.persons &&
+        p.persons.length > 0,
     ),
     [allPlaces],
   );

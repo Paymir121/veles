@@ -69,6 +69,33 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Quick guide */}
+      {isAuthenticated && (
+        <section className="mb-14">
+          <h2 className="text-2xl font-semibold text-text mb-4">Как добавить человека</h2>
+          <ol className="list-decimal list-inside space-y-2 text-text-muted leading-relaxed">
+            <li>
+              Откройте{' '}
+              <Link to="/tree" className="text-accent-secondary underline underline-offset-2">
+                семейное дерево
+              </Link>
+            </li>
+            <li>Нажмите на любого существующего человека — откроется его карточка</li>
+            <li>
+              В карточке нажмите одну из кнопок связи: <strong className="text-text">+ Отец</strong>,{' '}
+              <strong className="text-text">+ Мать</strong>,{' '}
+              <strong className="text-text">+ Супруг(а)</strong> или{' '}
+              <strong className="text-text">+ Ребёнок</strong>
+            </li>
+            <li>Заполните имя, фамилию и (по желанию) даты жизни, фото и заметки</li>
+            <li>Нажмите <strong className="text-text">Сохранить</strong> — новый человек появится на дереве</li>
+          </ol>
+          <p className="text-sm text-text-muted mt-3">
+            Если дерево пустое — нажмите кнопку <strong className="text-text">Добавить первого человека</strong> на странице дерева.
+          </p>
+        </section>
+      )}
+
       {/* Why */}
       <section className="mb-14">
         <h2 className="text-2xl font-semibold text-text mb-4">Зачем это нужно</h2>
