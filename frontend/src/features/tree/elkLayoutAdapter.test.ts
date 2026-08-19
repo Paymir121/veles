@@ -116,6 +116,27 @@ describe('layoutTree', () => {
 
     const siblingGap = Math.abs((nikita?.position.x ?? 0) - (anton?.position.x ?? 0)) - CELL_W;
     expect(siblingGap).toBe(CELL_W);
+
+    // Natural name order is Антон, Никита; father-left/mother-right mirrors it.
+    expect(nikita?.position.x).toBeLessThan(anton?.position.x ?? 0);
+    expect(father?.position.x).toBeLessThan(mother?.position.x ?? 0);
+  });
+
+  it('does not mirror children of a single parent', async () => {
+    const tree = [
+      makeNode('anton', { first_name: 'Антон' }, { children: ['darya', 'sofia'] }),
+      makeNode('darya', { first_name: 'Дарья', gender: 'F', gender_actual: 'F', birth_date: '2018-01-01' }, {
+        parents: ['anton'],
+      }),
+      makeNode('sofia', { first_name: 'Софья', gender: 'F', gender_actual: 'F', birth_date: '2020-01-01' }, {
+        parents: ['anton'],
+      }),
+    ];
+
+    const { nodes } = await layoutTree(tree);
+    const darya = nodes.find((node) => node.id === 'darya');
+    const sofia = nodes.find((node) => node.id === 'sofia');
+    expect(darya?.position.x).toBeLessThan(sofia?.position.x ?? 0);
   });
 
   it('keeps siblings on one row even if only one of them has children', async () => {

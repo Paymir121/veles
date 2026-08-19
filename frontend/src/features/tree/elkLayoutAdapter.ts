@@ -167,6 +167,23 @@ function sortCouple(ids: string[], byId: Map<string, TreeNode>): string[] {
   });
 }
 
+function hasFatherAndMother(parentIds: string[], byId: Map<string, TreeNode>): boolean {
+  const genders = parentIds.map((id) => {
+    const person = byId.get(id);
+    return person?.data.gender_actual || person?.data.gender;
+  });
+  return genders.includes('M') && genders.includes('F');
+}
+
+/** Natural child order, mirrored when parents are father-left / mother-right. */
+function sortChildren(family: FamilyUnit, byId: Map<string, TreeNode>): string[] {
+  const kids = sortPeople(family.childIds, byId);
+  if (family.parentIds.length >= 2 && hasFatherAndMother(family.parentIds, byId)) {
+    return kids.reverse();
+  }
+  return kids;
+}
+
 function farEnough(col: number, occupied: number[]): boolean {
   return occupied.every((used) => Math.abs(used - col) >= COL_STEP);
 }
@@ -260,7 +277,7 @@ function packColumns(
   };
 
   function packFamily(family: FamilyUnit, origin: number): { left: number; right: number } {
-    const kids = sortPeople(family.childIds.filter((id) => ids.has(id)), byId);
+    const kids = sortChildren(family, byId).filter((id) => ids.has(id));
     let cursor = origin;
     const childCols: number[] = [];
     let left = origin;
