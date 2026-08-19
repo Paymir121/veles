@@ -15,6 +15,7 @@ import type { TreeNode } from '@/shared/types';
 import { useTree } from './hooks';
 import { layoutTree, type TreeEdgeData, type TreeLayoutNodeData } from './elkLayoutAdapter';
 import { FamilyNode, PersonNode } from './PersonNode';
+import { DEFAULT_EDGE_STROKE_WIDTH, getEdgeStrokeWidth, scaleEdgeStrokeWidth } from './treeAppearance';
 
 const nodeTypes = { person: PersonNode, family: FamilyNode };
 
@@ -52,6 +53,7 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
   const [layout, setLayout] = useState<TreeLayoutState>(emptyLayout);
+  const [edgeStrokeWidth] = useState(getEdgeStrokeWidth);
   const { fitView } = useReactFlow();
 
   useEffect(() => {
@@ -85,6 +87,24 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   const displayNodes = useMemo(
     () => applyShowPhotos(layout.nodes, showPhotos),
     [layout.nodes, showPhotos],
+  );
+
+  const displayEdges = useMemo(
+    () =>
+      layout.edges.map((edge) => {
+        const baseWidth =
+          typeof edge.style?.strokeWidth === 'number'
+            ? edge.style.strokeWidth
+            : DEFAULT_EDGE_STROKE_WIDTH;
+        return {
+          ...edge,
+          style: {
+            ...edge.style,
+            strokeWidth: scaleEdgeStrokeWidth(baseWidth, edgeStrokeWidth),
+          },
+        };
+      }),
+    [layout.edges, edgeStrokeWidth],
   );
 
   const layoutReady = Boolean(
@@ -179,7 +199,7 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
     <div className="tree-view-container">
       <ReactFlow
         nodes={displayNodes}
-        edges={layout.edges}
+        edges={displayEdges}
         onNodesChange={() => {}}
         onEdgesChange={() => {}}
         onNodeClick={onNodeClick}

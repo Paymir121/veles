@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { usePerson, usePersons } from '@/features/persons/hooks';
+import {
+  DEFAULT_EDGE_STROKE_WIDTH,
+  getEdgeStrokeWidth,
+  MAX_EDGE_STROKE_WIDTH,
+  MIN_EDGE_STROKE_WIDTH,
+  setEdgeStrokeWidth,
+} from '@/features/tree/treeAppearance';
 import { useAuthStore } from './useAuthStore';
 import { fetchCurrentUser, setPersonUserLink, updateCurrentUser } from './api';
 import { apiClient } from '@/shared/api/client';
@@ -18,6 +25,7 @@ export function ProfilePage() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [edgeStrokeWidth, setEdgeStrokeWidthState] = useState(getEdgeStrokeWidth);
   const [personQuery, setPersonQuery] = useState('');
   const debouncedPersonQuery = useDebouncedValue(personQuery, 300);
   const linkedPersonId = user?.linked_person_id;
@@ -208,6 +216,41 @@ export function ProfilePage() {
           {saving ? 'Сохранение…' : 'Сохранить изменения'}
         </button>
       </form>
+
+      <div className="card flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-text">Отображение дерева</h2>
+        <p className="text-sm text-text-muted -mt-2">
+          Толщина линий между людьми. Хранится в этом браузере, на сервер не уходит.
+        </p>
+        <label className="field-label">
+          <span className="flex items-center justify-between gap-3">
+            Толщина рёбер
+            <span className="tabular-nums text-text font-medium">{edgeStrokeWidth.toFixed(1)}</span>
+          </span>
+          <input
+            className="range-input"
+            type="range"
+            min={MIN_EDGE_STROKE_WIDTH}
+            max={MAX_EDGE_STROKE_WIDTH}
+            step={0.1}
+            value={edgeStrokeWidth}
+            aria-valuemin={MIN_EDGE_STROKE_WIDTH}
+            aria-valuemax={MAX_EDGE_STROKE_WIDTH}
+            aria-valuenow={edgeStrokeWidth}
+            onChange={(e) => {
+              setEdgeStrokeWidthState(setEdgeStrokeWidth(Number(e.target.value)));
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn-secondary btn self-start"
+          disabled={edgeStrokeWidth === DEFAULT_EDGE_STROKE_WIDTH}
+          onClick={() => setEdgeStrokeWidthState(setEdgeStrokeWidth(DEFAULT_EDGE_STROKE_WIDTH))}
+        >
+          Сбросить
+        </button>
+      </div>
 
       <div className="card flex flex-col gap-4">
         <h2 className="text-lg font-semibold text-text">Кто вы в дереве</h2>
