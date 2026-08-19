@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/useAuthStore';
 import { apiClient } from '@/shared/api/client';
 
@@ -29,8 +29,9 @@ export function NavBar() {
         `Союзы: создано ${s.unions_created}, обновлено ${s.unions_updated}`
       );
       window.location.reload();
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail || 'Неизвестная ошибка';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      const detail = err?.response?.data?.detail || 'Неизвестная ошибка';
       alert(`Ошибка импорта: ${detail}`);
     }
   }
@@ -83,7 +84,7 @@ export function NavBar() {
     <header className="sticky top-0 z-30 border-b border-border bg-bg/80 backdrop-blur-sm">
       {/* Desktop bar */}
       <div className="flex items-center gap-4 px-4 sm:px-6 h-14">
-        <div className="font-bold text-lg text-accent-secondary shrink-0">Велес</div>
+        <Link to="/" className="font-bold text-lg text-accent-secondary shrink-0 no-underline">Велес</Link>
 
         {/* Burger toggle — below md */}
         <button
@@ -110,6 +111,9 @@ export function NavBar() {
 
         {/* Desktop links — md+ */}
         <nav className="hidden md:flex items-center gap-2 flex-1">
+          <NavLink to="/" end className={linkClass}>
+            Главная
+          </NavLink>
           <NavLink to="/tree" className={linkClass}>
             Дерево
           </NavLink>
@@ -160,6 +164,9 @@ export function NavBar() {
       {/* Mobile dropdown — below md */}
       {menuOpen && (
         <nav className="md:hidden border-t border-border bg-bg px-3 py-2 flex flex-col gap-1">
+          <NavLink to="/" end className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+            Главная
+          </NavLink>
           <NavLink to="/tree" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
             Дерево
           </NavLink>
