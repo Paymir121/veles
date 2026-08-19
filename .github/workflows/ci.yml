@@ -53,5 +53,6 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin main
             docker compose build
-            docker compose up -d --remove-orphans
+            docker compose down --remove-orphans || true
+            docker compose up -d
             docker image prune -f
