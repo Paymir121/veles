@@ -15,4 +15,8 @@ describe('resolveMediaUrl', () => {
   it('strips localhost host from absolute media URLs', () => {
     expect(resolveMediaUrl('http://localhost:8000/media/photos/test.jpg')).toBe('/media/photos/test.jpg');
   });
+
+  it('strips production host when path is under /media/', () => {
+    expect(resolveMediaUrl('https://veles.example.com/media/photos/test.jpg')).toBe('/media/photos/test.jpg');
+  });
 });

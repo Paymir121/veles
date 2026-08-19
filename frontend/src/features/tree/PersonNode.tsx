@@ -28,7 +28,12 @@ export function PersonNode({ data }: PersonNodeProps) {
           className={`person-node-circle ${circleClass}${showPhoto ? ' person-node-circle--with-photo' : ''}${data.showPhotos ? ' person-node-circle--photo-mode' : ''}`}
           aria-hidden="true"
         >
-          {photoSrc && <img src={photoSrc} alt="" className="person-node-photo" />}
+          {photoSrc && (
+            <div
+              className="person-node-photo"
+              style={{ backgroundImage: `url("${photoSrc}")` }}
+            />
+          )}
         </div>
         <div className="person-node-label">{data.label}</div>
       </div>

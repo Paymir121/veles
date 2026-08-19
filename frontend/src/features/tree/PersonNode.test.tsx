@@ -43,15 +43,15 @@ describe('PersonNode', () => {
   });
 
   it('renders photo inside the circle when showPhotos is on and avatar exists', () => {
-    renderPersonNode({ showPhotos: true, avatar: 'http://example.com/photo.jpg' });
-    const photo = screen.getByRole('presentation', { hidden: true });
-    expect(photo).toHaveAttribute('src', '/photo.jpg');
-    expect(photo).toHaveClass('person-node-photo');
+    renderPersonNode({ showPhotos: true, avatar: 'http://example.com/media/photos/photo.jpg' });
+    const photo = document.querySelector('.person-node-photo') as HTMLElement;
+    expect(photo).not.toBeNull();
+    expect(photo.style.backgroundImage).toContain('/media/photos/photo.jpg');
     expect(photo.closest('.person-node-circle--with-photo')).not.toBeNull();
   });
 
   it('does not render photo when avatar is missing even in photo mode', () => {
     renderPersonNode({ showPhotos: true, avatar: null });
-    expect(screen.queryByRole('img')).toBeNull();
+    expect(document.querySelector('.person-node-circle--with-photo')).toBeNull();
   });
 });
