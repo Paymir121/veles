@@ -45,7 +45,7 @@ describe('PersonNode', () => {
   it('renders photo inside the circle when showPhotos is on and avatar exists', () => {
     renderPersonNode({ showPhotos: true, avatar: 'http://example.com/photo.jpg' });
     const photo = screen.getByRole('presentation', { hidden: true });
-    expect(photo).toHaveAttribute('src', 'http://example.com/photo.jpg');
+    expect(photo).toHaveAttribute('src', '/photo.jpg');
     expect(photo).toHaveClass('person-node-photo');
     expect(photo.closest('.person-node-circle--with-photo')).not.toBeNull();
   });

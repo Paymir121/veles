@@ -143,7 +143,7 @@ def serialize_tree(request):
                     "birth_date": p.birth_date_text or (p.birth_date.isoformat() if p.birth_date else ""),
                     "death_date": p.death_date_text or (p.death_date.isoformat() if p.death_date else ""),
                     "status": p.status,
-                    "avatar": request.build_absolute_uri(p.photo.url) if p.photo else None,
+                    "avatar": p.photo.url if p.photo else None,
                 },
                 "rels": {
                     "parents": [str(i) for i in (p.father_id, p.mother_id) if i],

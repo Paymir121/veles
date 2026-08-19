@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { resolveMediaUrl } from '@/shared/utils/resolveMediaUrl';
 import type { FamilyNodeData, PersonNodeData } from './elkLayoutAdapter';
 
 type PersonNodeProps = NodeProps & { data: PersonNodeData };
@@ -15,6 +16,7 @@ export function PersonNode({ data }: PersonNodeProps) {
         : 'person-node-circle--deceased';
 
   const showPhoto = Boolean(data.showPhotos && data.avatar);
+  const photoSrc = showPhoto ? resolveMediaUrl(data.avatar) : null;
 
   return (
     <div className="person-node">
@@ -26,7 +28,7 @@ export function PersonNode({ data }: PersonNodeProps) {
           className={`person-node-circle ${circleClass}${showPhoto ? ' person-node-circle--with-photo' : ''}${data.showPhotos ? ' person-node-circle--photo-mode' : ''}`}
           aria-hidden="true"
         >
-          {showPhoto && <img src={data.avatar!} alt="" className="person-node-photo" />}
+          {photoSrc && <img src={photoSrc} alt="" className="person-node-photo" />}
         </div>
         <div className="person-node-label">{data.label}</div>
       </div>

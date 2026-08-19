@@ -221,6 +221,39 @@ body {
   z-index: 10;
 }
 
+.tree-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.tree-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tree-toolbar-focus {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .tree-toolbar-focus {
+    flex: 1 1 auto;
+    order: 0;
+  }
+
+  .tree-toolbar-hint {
+    margin-left: auto;
+  }
+}
+
 /* ── Person node (React Flow custom node) ──────────────────────────────── */
 
 .person-node {
@@ -267,6 +300,8 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .person-node-circle--alive {
@@ -665,6 +700,10 @@ body {
   .tree-page,
   .map-page {
     min-height: 0;
+  }
+
+  .tree-view-container {
+    min-height: min(52vh, 420px);
   }
 }
 

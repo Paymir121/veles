@@ -6,6 +6,6 @@ import type { TreeNode } from '@/shared/types';
 // reshaping needed (see familyChartAdapter.ts, the one place that touches
 // family-chart's actual API).
 export async function fetchTree(): Promise<TreeNode[]> {
-  const { data } = await apiClient.get<TreeNode[]>('/tree/');
+  const { data } = await apiClient.get<TreeNode[]>('/tree/', { timeout: 15_000 });
   return data;
 }

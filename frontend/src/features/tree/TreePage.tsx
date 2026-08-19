@@ -34,34 +34,36 @@ export function TreePage() {
 
   return (
     <div className="tree-page">
-      <div className="flex items-center gap-3 mb-3">
-        <button
-          type="button"
-          className="btn btn-secondary text-sm sticky-panel-toggle"
-          aria-expanded={isPanelOpen}
-          onClick={() => setIsPanelOpen((open) => !open)}
-        >
-          {isPanelOpen ? 'Скрыть людей' : 'Люди'}
-        </button>
+      <div className="tree-toolbar mb-3">
+        <div className="tree-toolbar-actions">
+          <button
+            type="button"
+            className="btn btn-secondary text-sm sticky-panel-toggle"
+            aria-expanded={isPanelOpen}
+            onClick={() => setIsPanelOpen((open) => !open)}
+          >
+            {isPanelOpen ? 'Скрыть людей' : 'Люди'}
+          </button>
+          <button
+            type="button"
+            className={`btn text-sm ${showPhotos ? 'btn-primary' : 'btn-secondary'}`}
+            aria-pressed={showPhotos}
+            onClick={() => setShowPhotos((on) => !on)}
+          >
+            {showPhotos ? 'Скрыть фото' : 'Показать фото'}
+          </button>
+        </div>
         {focusedName && (
-          <p className="text-sm text-text-muted truncate">
+          <p className="tree-toolbar-focus text-sm text-text-muted truncate">
             В центре: <span className="text-text font-medium">{focusedName}</span>
           </p>
         )}
-        <button
-          type="button"
-          className={`btn text-sm ml-auto shrink-0 ${showPhotos ? 'btn-primary' : 'btn-secondary'}`}
-          aria-pressed={showPhotos}
-          onClick={() => setShowPhotos((on) => !on)}
-        >
-          {showPhotos ? 'Скрыть фото' : 'Показать фото'}
-        </button>
-        <p className="hidden lg:block text-xs text-text-muted shrink-0">
+        <p className="hidden lg:block text-xs text-text-muted shrink-0 tree-toolbar-hint">
           Клик по карточке — профиль человека
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0 min-w-0 w-full">
         <PeoplePanel
           groups={groups}
           centeredId={focusPersonId ?? ''}

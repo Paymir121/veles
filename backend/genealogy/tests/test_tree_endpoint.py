@@ -67,6 +67,17 @@ def test_tree_gender_unknown_falls_back_to_M_but_keeps_actual(auth_client):
     assert node["data"]["gender_actual"] == "U"
 
 
+def test_tree_avatar_is_relative_media_path(auth_client):
+    person = Person.objects.create(first_name="Photo", last_name="Test", status="alive", gender="M")
+    person.photo = "photos/2026/08/sample.jpg"
+    person.save(update_fields=["photo"])
+
+    response = auth_client.get("/api/tree/")
+    node = next(item for item in response.json() if item["id"] == str(person.pk))
+    assert node["data"]["avatar"] == person.photo.url
+    assert node["data"]["avatar"].startswith("/media/")
+
+
 def test_tree_runs_in_two_queries(auth_client, small_family):
     with CaptureQueriesContext(connection) as ctx:
         response = auth_client.get("/api/tree/")

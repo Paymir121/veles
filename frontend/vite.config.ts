@@ -18,6 +18,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     proxy: {
       // Backend (Django) runs separately in dev. Everything is called through
       // relative /api and /media paths so the app never needs to know the
