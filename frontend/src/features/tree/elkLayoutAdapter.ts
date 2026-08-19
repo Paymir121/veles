@@ -207,7 +207,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         id: edgeId,
         source: parentId,
         target: family.id,
-        type: 'straight',
+        type: 'smoothstep',
         data: {
           kind: (byId.get(parentId) && getPersonVisualKind(byId.get(parentId) as TreeNode) === 'root')
             ? 'root'
@@ -236,7 +236,7 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         source: family.id,
         target: childId,
         data: { kind: getEdgeKindToPerson(byId.get(childId) as TreeNode) },
-        type: 'straight',
+        type: 'smoothstep',
         style: edgeStyleForKind(getEdgeKindToPerson(byId.get(childId) as TreeNode)),
       });
     }

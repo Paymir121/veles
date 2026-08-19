@@ -231,20 +231,6 @@
       ]
     },
     {
-      "key": "roman",
-      "first_name": "Роман",
-      "last_name": "Морозов",
-      "patronymic": "Викторович",
-      "gender": "M",
-      "birth_date": "2018-09-01",
-      "birth_place": "Москва",
-      "status": "alive",
-      "father": "viktor",
-      "mother": "tatyana",
-      "extra_info": [],
-      "notes": "Единокровный брат Анастасии (от второго брака Виктора)."
-    },
-    {
       "key": "nikita",
       "first_name": "Никита",
       "last_name": "Соколов",
@@ -306,12 +292,6 @@
       "date_end_text": "2015",
       "status": "widowed",
       "notes": "Брак закончился со смертью Ольги."
-    },
-    {
-      "person1": "viktor",
-      "person2": "tatyana",
-      "date_start": "2017-05-20",
-      "status": "married"
     },
     {
       "person1": "dmitry",
