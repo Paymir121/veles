@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '@/features/auth/useAuthStore';
 import { formatFullName } from './familyChartAdapter';
 import { groupTreePeople } from './treePeople';
 import { useTree } from './hooks';
@@ -11,11 +12,12 @@ export function TreePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const linkedPersonId = useAuthStore((state) => state.user?.linked_person_id);
 
   const groups = useMemo(() => (data ? groupTreePeople(data) : []), [data]);
   const requestedId = searchParams.get('person') ?? '';
 
-  const focusPersonId = pickedId || requestedId || undefined;
+  const focusPersonId = pickedId || requestedId || (linkedPersonId ? String(linkedPersonId) : '') || undefined;
 
   const focusedName = useMemo(() => {
     if (!focusPersonId || !data) return '';
@@ -34,11 +36,11 @@ export function TreePage() {
       <div className="flex items-center gap-3 mb-3">
         <button
           type="button"
-          className="btn btn-secondary text-sm md:hidden"
+          className="btn btn-secondary text-sm sticky-panel-toggle"
           aria-expanded={isPanelOpen}
           onClick={() => setIsPanelOpen((open) => !open)}
         >
-          {isPanelOpen ? 'Скрыть список' : 'Люди'}
+          {isPanelOpen ? 'Скрыть людей' : 'Люди'}
         </button>
         {focusedName && (
           <p className="text-sm text-text-muted truncate">
@@ -55,7 +57,7 @@ export function TreePage() {
           groups={groups}
           centeredId={focusPersonId ?? ''}
           onSelect={handleSelect}
-          className={`${isPanelOpen ? 'flex' : 'hidden'} md:flex max-h-[45vh] md:max-h-none`}
+          className={`${isPanelOpen ? 'flex' : 'hidden'} max-h-[45vh] md:max-h-none ${isPanelOpen ? 'mobile-people-panel-open' : ''}`}
         />
         <TreeView focusPersonId={focusPersonId} />
       </div>

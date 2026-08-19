@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
-  MiniMap,
   Controls,
   Background,
   useNodesState,
@@ -95,10 +94,11 @@ function TreeViewInner({ focusPersonId }: TreeViewProps) {
         fitView
         nodesDraggable={false}
         nodesConnectable={false}
+        minZoom={0.2}
+        maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
         <Controls showInteractive={false} />
-        <MiniMap />
         <Background />
       </ReactFlow>
     </div>

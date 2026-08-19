@@ -1,6 +1,7 @@
 import { Map as YandexMapComponent, Placemark, YMaps } from '@pbe/react-yandex-maps';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/useAuthStore';
+import type { PersonSummary } from '@/shared/types';
 import {
   FOCUSED_MAP_ZOOM,
   hasYandexMapsApiKey,
@@ -44,6 +45,30 @@ export function PersonDetailPage() {
   const fullName = [person.last_name, person.first_name, person.patronymic]
     .filter(Boolean)
     .join(' ');
+
+  function renderRelationList(title: string, people: PersonSummary[]) {
+    if (people.length === 0) return null;
+    return (
+      <div className="card mb-4">
+        <h2 className="text-lg font-semibold mb-3">{title}</h2>
+        <ul className="space-y-2">
+          {people.map((relative) => (
+            <li key={relative.id}>
+              <Link to={`/person/${relative.id}`} className="text-accent hover:underline">
+                {[relative.last_name, relative.first_name, relative.patronymic].filter(Boolean).join(' ')}
+              </Link>
+              {(relative.birth_date || relative.death_date) && (
+                <span className="text-text-muted ml-2 text-xs">
+                  {relative.birth_date || '?'}
+                  {relative.death_date ? ` — ${relative.death_date}` : ''}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl w-full">
@@ -161,6 +186,10 @@ export function PersonDetailPage() {
           </dd>
         </dl>
       </div>
+
+      {renderRelationList('Дети', person.children)}
+
+      {renderRelationList('Братья и сёстры', person.siblings)}
 
       {/* Burial mini-map */}
       {person.status === 'deceased' &&

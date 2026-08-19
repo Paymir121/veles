@@ -203,6 +203,7 @@ body {
   min-height: 0;
   height: 100%;
   width: 100%;
+  overflow: hidden;
 }
 
 .tree-view-container {
@@ -212,6 +213,12 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+
+.sticky-panel-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 /* ── Person node (React Flow custom node) ──────────────────────────────── */
@@ -247,7 +254,7 @@ body {
 
 .map-view-container {
   flex: 1;
-  min-height: 300px;
+  min-height: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -436,6 +443,13 @@ body {
   scrollbar-width: none;
 }
 
+.wizard-sticky-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--color-surface);
+}
+
 .wizard-steps::-webkit-scrollbar {
   display: none;
 }
@@ -494,6 +508,89 @@ body {
   font-weight: 700;
   background: var(--color-bg-muted);
   color: var(--color-text-muted);
+}
+
+.date-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-picker-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-default);
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.people-group-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.mobile-menu-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mobile-menu-panel {
+  position: fixed;
+  right: 12px;
+  left: 12px;
+  top: calc(56px + env(safe-area-inset-top, 0px));
+  z-index: 55;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+@media (min-width: 768px) {
+  .mobile-menu-fab,
+  .mobile-menu-panel {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-people-panel-open {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    top: calc(72px + env(safe-area-inset-top, 0px));
+    z-index: 40;
+    max-height: min(45vh, 360px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  }
+
+  .tree-page,
+  .map-page {
+    min-height: 0;
+  }
 }
 
 .wizard-step-btn[data-active="true"] .wizard-step-num {

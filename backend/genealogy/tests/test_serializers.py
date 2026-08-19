@@ -3,7 +3,7 @@ from rest_framework.test import APIRequestFactory
 
 from accounts.models import User
 from genealogy.models import Person
-from genealogy.serializers import PersonSerializer, UnionSerializer
+from genealogy.serializers import PersonDetailSerializer, PersonSerializer, UnionSerializer
 
 pytestmark = pytest.mark.django_db
 
@@ -85,6 +85,75 @@ def test_person_serializer_rejects_linking_someone_elses_account(user, other_use
     serializer = PersonSerializer(data=data, context={"request": _request_for(user)})
     assert not serializer.is_valid()
     assert "linked_user" in serializer.errors
+
+
+def test_person_detail_serializer_includes_children_and_siblings():
+    father = Person.objects.create(first_name="Petr", last_name="Ivanov", status="alive", gender="M")
+    mother = Person.objects.create(first_name="Anna", last_name="Ivanova", status="alive", gender="F")
+    child = Person.objects.create(
+        first_name="Ivan",
+        last_name="Ivanov",
+        status="alive",
+        gender="M",
+        father=father,
+        mother=mother,
+    )
+    sibling = Person.objects.create(
+        first_name="Olga",
+        last_name="Ivanova",
+        status="alive",
+        gender="F",
+        father=father,
+        mother=mother,
+    )
+
+    serialized = PersonDetailSerializer(father).data
+    assert [person["id"] for person in serialized["children"]] == [child.pk, sibling.pk]
+
+    serialized_child = PersonDetailSerializer(child).data
+    assert [person["id"] for person in serialized_child["siblings"]] == [sibling.pk]
+
+
+def test_person_serializer_rejects_children_conflict_without_force(user):
+    old_father = Person.objects.create(first_name="Old", last_name="Father", status="alive", gender="M")
+    new_father = Person.objects.create(first_name="New", last_name="Father", status="alive", gender="M")
+    child = Person.objects.create(
+        first_name="Kid",
+        last_name="Person",
+        status="alive",
+        gender="M",
+        father=old_father,
+    )
+    serializer = PersonSerializer(
+        new_father,
+        data={"children": [child.pk]},
+        partial=True,
+        context={"request": _request_for(user)},
+    )
+    assert not serializer.is_valid()
+    assert "children_conflicts" in serializer.errors
+
+
+def test_person_serializer_reassigns_children_with_force(user):
+    old_father = Person.objects.create(first_name="Old", last_name="Father", status="alive", gender="M")
+    new_father = Person.objects.create(first_name="New", last_name="Father", status="alive", gender="M")
+    child = Person.objects.create(
+        first_name="Kid",
+        last_name="Person",
+        status="alive",
+        gender="M",
+        father=old_father,
+    )
+    serializer = PersonSerializer(
+        new_father,
+        data={"children": [child.pk], "force_children_reassign": True},
+        partial=True,
+        context={"request": _request_for(user)},
+    )
+    assert serializer.is_valid(), serializer.errors
+    serializer.save(updated_by=user)
+    child.refresh_from_db()
+    assert child.father_id == new_father.pk
 
 
 # --- UnionSerializer: clean() wiring ----------------------------------------

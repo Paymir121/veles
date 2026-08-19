@@ -1,6 +1,6 @@
 import { apiClient } from '@/shared/api/client';
 import { unwrapList } from '@/shared/api/unwrapList';
-import type { BurialPlace, Person } from '@/shared/types';
+import type { BurialPlace, Person, PersonSummary } from '@/shared/types';
 import type { BurialPlaceCreatePayload, PersonFormValues } from './types';
 
 export interface PersonListParams {
@@ -10,9 +10,9 @@ export interface PersonListParams {
   ordering?: string;
 }
 
-export async function fetchPersons(params?: PersonListParams): Promise<Person[]> {
+export async function fetchPersons(params?: PersonListParams): Promise<PersonSummary[]> {
   const { data } = await apiClient.get('/persons/', { params });
-  return unwrapList<Person>(data);
+  return unwrapList<PersonSummary>(data);
 }
 
 export async function fetchPerson(id: number): Promise<Person> {
@@ -43,6 +43,8 @@ function toJsonPayload(values: PersonFormValues): Record<string, unknown> {
     death_date_text: isDeceased ? values.death_date_text : '',
     father: values.father === '' ? null : values.father,
     mother: values.mother === '' ? null : values.mother,
+    children: values.children,
+    force_children_reassign: values.force_children_reassign ?? false,
     burial_place: isDeceased && values.burial_place !== '' ? values.burial_place : null,
     burial_plot_details: isDeceased ? values.burial_plot_details : '',
     notes: values.notes,
@@ -86,6 +88,10 @@ function toFormData(
   append('death_date_text', isDeceased ? values.death_date_text : '');
   append('father', values.father);
   append('mother', values.mother);
+  values.children.forEach((childId) => append('children', childId));
+  if (values.force_children_reassign) {
+    append('force_children_reassign', 'true');
+  }
   append('burial_place', isDeceased ? values.burial_place : '');
   append('burial_plot_details', isDeceased ? values.burial_plot_details : '');
   append('notes', values.notes);

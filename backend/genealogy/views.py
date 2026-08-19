@@ -2,6 +2,7 @@ import json
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
@@ -16,6 +17,7 @@ from logger.logger import py_logger
 from .models import BurialPlace, Person, Union
 from .serializers import (
     BurialPlaceSerializer,
+    PersonDetailSerializer,
     PersonSearchSerializer,
     PersonSerializer,
     UnionSerializer,
@@ -34,7 +36,7 @@ class PersonViewSet(ModelViewSet):
     queryset = Person.objects.select_related("father", "mother", "burial_place")
     serializer_class = PersonSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["gender", "status"]
+    filterset_fields = ["status"]
     search_fields = ["first_name", "last_name", "patronymic", "maiden_name", "birth_place"]
     ordering_fields = ["last_name", "birth_date"]
 
@@ -45,6 +47,22 @@ class PersonViewSet(ModelViewSet):
         if self.action == "retrieve":
             return [AllowAny()]
         return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return PersonDetailSerializer
+        return PersonSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        gender = self.request.query_params.get("gender")
+        if gender == "M":
+            return queryset.filter(Q(gender="M") | Q(gender="U"))
+        if gender == "F":
+            return queryset.filter(Q(gender="F") | Q(gender="U"))
+        if gender:
+            return queryset.filter(gender=gender)
+        return queryset
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user, updated_by=self.request.user)

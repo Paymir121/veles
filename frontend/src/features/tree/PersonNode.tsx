@@ -8,13 +8,13 @@ export function PersonNode({ data }: PersonNodeProps) {
 
   return (
     <div className="person-node">
-      <Handle type="target" position={Position.Top} className="!invisible" />
+      <Handle type="target" position={Position.Bottom} className="!invisible" />
       <div
         className="person-node-circle"
         style={{ background: isAlive ? 'var(--color-accent-secondary)' : '#334155' }}
       />
       <div className="person-node-label">{data.label}</div>
-      <Handle type="source" position={Position.Bottom} className="!invisible" />
+      <Handle type="source" position={Position.Top} className="!invisible" />
     </div>
   );
 }

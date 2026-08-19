@@ -147,6 +147,10 @@ DJOSER = {
     "LOGIN_FIELD": "username",
     "USER_CREATE_PASSWORD_RETYPE": True,
     "SEND_ACTIVATION_EMAIL": False,
+    "SERIALIZERS": {
+        "current_user": "accounts.serializers.UserSerializer",
+        "user": "accounts.serializers.UserSerializer",
+    },
     "PERMISSIONS": {
         "user_create": ["rest_framework.permissions.AllowAny"],
     },

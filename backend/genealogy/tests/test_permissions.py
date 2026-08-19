@@ -71,6 +71,22 @@ def test_authenticated_user_can_list_persons():
     assert response.status_code == 200
 
 
+def test_gender_filter_includes_unknown_people_for_parent_pickers():
+    user = User.objects.create_user(username="picker", password="pw12345")
+    father = Person.objects.create(first_name="Petr", last_name="Known", status="alive", gender="M")
+    unknown = Person.objects.create(first_name="Sasha", last_name="Unknown", status="alive", gender="U")
+    mother = Person.objects.create(first_name="Anna", last_name="Known", status="alive", gender="F")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    father_response = client.get("/api/persons/?gender=M")
+    mother_response = client.get("/api/persons/?gender=F")
+
+    assert father_response.status_code == 200
+    assert {person["id"] for person in father_response.data["results"]} == {father.pk, unknown.pk}
+    assert {person["id"] for person in mother_response.data["results"]} == {mother.pk, unknown.pk}
+
+
 def test_jwt_login_and_use_token():
     User.objects.create_user(username="alice", password="pw12345")
     client = APIClient()

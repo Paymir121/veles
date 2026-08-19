@@ -39,3 +39,9 @@ export async function updateCurrentUser(payload: UpdateUserPayload): Promise<Use
   const { data } = await apiClient.patch<User>('/auth/users/me/', payload);
   return data;
 }
+
+export async function setPersonUserLink(personId: number, linkedUserId: number | null): Promise<void> {
+  await apiClient.patch(`/persons/${personId}/`, {
+    linked_user: linkedUserId,
+  });
+}

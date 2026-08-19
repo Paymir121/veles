@@ -18,10 +18,12 @@ export interface PersonFormValues {
   death_date_text: string;
   father: number | '';
   mother: number | '';
+  children: number[];
   burial_place: number | '';
   burial_plot_details: string;
   notes: string;
   extra_info: ExtraInfoItem[];
+  force_children_reassign?: boolean;
 }
 
 export const EMPTY_PERSON_FORM_VALUES: PersonFormValues = {
@@ -38,10 +40,12 @@ export const EMPTY_PERSON_FORM_VALUES: PersonFormValues = {
   death_date_text: '',
   father: '',
   mother: '',
+  children: [],
   burial_place: '',
   burial_plot_details: '',
   notes: '',
   extra_info: [],
+  force_children_reassign: false,
 };
 
 export interface BurialPlaceCreatePayload {

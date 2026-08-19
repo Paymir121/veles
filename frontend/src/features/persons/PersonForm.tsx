@@ -2,12 +2,11 @@ import { Clusterer, Map, Placemark, YMaps, useYMaps } from '@pbe/react-yandex-ma
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import {
-  DEFAULT_MAP_CENTER,
-  DEFAULT_MAP_ZOOM,
   FOCUSED_MAP_ZOOM,
   hasYandexMapsApiKey,
   yandexMapsQuery,
 } from '@/shared/maps/yandexMapsSetup';
+import { getStoredMapViewport, storeMapViewport } from '@/shared/maps/viewportPersistence';
 import type { BurialPlace, Gender, PersonStatus } from '@/shared/types';
 import { escapeHtml } from '@/shared/utils/escapeHtml';
 
@@ -77,7 +76,6 @@ export function PersonForm({
   // A new burial place lives here, next to the person's own fields, and is
   // created as part of saving the person - see handleSubmit.
   const [placeDraft, setPlaceDraft] = useState<BurialPlaceDraft>(EMPTY_BURIAL_PLACE_DRAFT);
-  const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [isSavingPlace, setIsSavingPlace] = useState(false);
   const ymapsRef = useRef<YMapsApi | null>(null);
   const createPlaceMutation = useCreateBurialPlace();
@@ -101,8 +99,7 @@ export function PersonForm({
         : {}),
     }));
     if (status === 'alive') {
-      setPlaceDraft(EMPTY_BURIAL_PLACE_DRAFT);
-      setIsDraftOpen(false);
+        setPlaceDraft(EMPTY_BURIAL_PLACE_DRAFT);
       if (step === 'burial') setStep('basics');
     }
   }
@@ -139,7 +136,6 @@ export function PersonForm({
         submittedValues = { ...values, burial_place: created.id };
         setValues(submittedValues);
         setPlaceDraft(EMPTY_BURIAL_PLACE_DRAFT);
-        setIsDraftOpen(false);
       } catch {
         setValidationError('Не удалось сохранить место захоронения. Проверьте название и координаты.');
         setStep('burial');
@@ -169,7 +165,8 @@ export function PersonForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Wizard nav card: tabs + action buttons */}
       <div className="card space-y-4">
-        <div className="wizard-steps">
+        <div className="wizard-sticky-tabs">
+          <div className="wizard-steps">
           {steps.map((s, i) => (
             <button
               key={s}
@@ -183,8 +180,9 @@ export function PersonForm({
             </button>
           ))}
         </div>
+        </div>
 
-        <div className="flex items-center border-t border-border pt-3">
+        <div className="items-center border-t border-border pt-3 hidden sm:flex">
           <div className="flex items-center gap-2">
             <button type="button" className="btn btn-secondary" onClick={goPrev} disabled={stepIndex === 0}>
               Назад
@@ -203,6 +201,10 @@ export function PersonForm({
             {validationError}
           </div>
         )}
+
+        <button type="submit" className="btn w-full sm:hidden" disabled={isSubmitting || isSavingPlace}>
+          {isSavingPlace ? 'Сохраняем место...' : isSubmitting ? 'Сохранение...' : submitLabel}
+        </button>
       </div>
 
       {/* Step: Basics */}
@@ -230,8 +232,6 @@ export function PersonForm({
           onGravePhotoChange={setGravePhoto}
           draft={placeDraft}
           onDraftChange={setPlaceDraft}
-          isDraftOpen={isDraftOpen}
-          onDraftOpenChange={setIsDraftOpen}
           onYmapsReady={(instance) => {
             ymapsRef.current = instance;
           }}
@@ -295,6 +295,57 @@ async function resolveDraftCoordinates(
 interface StepProps {
   values: PersonFormValues;
   setField: <K extends keyof PersonFormValues>(key: K, value: PersonFormValues[K]) => void;
+}
+
+function DateFieldInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const pickerRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <label className="field-label">
+      {label}
+      <div className="date-input-row">
+        <input
+          className="input"
+          value={value}
+          inputMode="numeric"
+          placeholder="ГГГГ-ММ-ДД"
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="date-picker-btn"
+          aria-label={`${label}: открыть календарь`}
+          onClick={() => {
+            const input = pickerRef.current;
+            if (!input) return;
+            if (typeof input.showPicker === 'function') {
+              input.showPicker();
+            } else {
+              input.click();
+            }
+          }}
+        >
+          Календарь
+        </button>
+        <input
+          ref={pickerRef}
+          className="sr-only"
+          type="date"
+          value={value}
+          tabIndex={-1}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </label>
+  );
 }
 
 function StepBasics({
@@ -390,15 +441,11 @@ function StepBasics({
 
       {/* Birth date */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="field-label">
-          Дата рождения
-          <input
-            className="input"
-            type="date"
-            value={values.birth_date}
-            onChange={(e) => setField('birth_date', e.target.value)}
-          />
-        </label>
+        <DateFieldInput
+          label="Дата рождения"
+          value={values.birth_date}
+          onChange={(value) => setField('birth_date', value)}
+        />
         <label className="field-label">
           Место рождения
           <input
@@ -431,15 +478,11 @@ function StepBasics({
       {isDeceased && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="field-label">
-              Дата смерти
-              <input
-                className="input"
-                type="date"
-                value={values.death_date}
-                onChange={(e) => setField('death_date', e.target.value)}
-              />
-            </label>
+            <DateFieldInput
+              label="Дата смерти"
+              value={values.death_date}
+              onChange={(value) => setField('death_date', value)}
+            />
           </div>
           {!showDeathDateText ? (
             <button type="button" className="btn-ghost text-sm text-accent" onClick={() => setShowDeathDateText(true)}>
@@ -465,7 +508,7 @@ function StepBasics({
 function StepParents({ values, setField, excludePersonId }: StepProps & { excludePersonId?: number }) {
   return (
     <div className="card space-y-5">
-      <h2 className="text-lg font-semibold">Родители</h2>
+      <h2 className="text-lg font-semibold">Родители и дети</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PersonPickerField
           label="Отец"
@@ -482,6 +525,12 @@ function StepParents({ values, setField, excludePersonId }: StepProps & { exclud
           onChange={(id) => setField('mother', id)}
         />
       </div>
+      <MultiPersonPickerField
+        label="Дети"
+        values={values.children}
+        excludeId={excludePersonId}
+        onChange={(ids) => setField('children', ids)}
+      />
     </div>
   );
 }
@@ -494,8 +543,6 @@ function StepBurial({
   onGravePhotoChange,
   draft,
   onDraftChange,
-  isDraftOpen,
-  onDraftOpenChange,
   onYmapsReady,
 }: StepProps & {
   gravePhoto: File | null;
@@ -503,8 +550,6 @@ function StepBurial({
   onGravePhotoChange: (f: File | null) => void;
   draft: BurialPlaceDraft;
   onDraftChange: (draft: BurialPlaceDraft) => void;
-  isDraftOpen: boolean;
-  onDraftOpenChange: (open: boolean) => void;
   onYmapsReady: (instance: YMapsApi) => void;
 }) {
   return (
@@ -515,8 +560,6 @@ function StepBurial({
         onChange={(id) => setField('burial_place', id)}
         draft={draft}
         onDraftChange={onDraftChange}
-        isDraftOpen={isDraftOpen}
-        onDraftOpenChange={onDraftOpenChange}
         onYmapsReady={onYmapsReady}
       />
       <label className="field-label">
@@ -635,6 +678,96 @@ function PersonPickerField({ label, value, excludeId, genderFilter, onChange }: 
   );
 }
 
+function SelectedPersonRow({
+  id,
+  onRemove,
+}: {
+  id: number;
+  onRemove?: () => void;
+}) {
+  const { data: selected, isLoading } = usePerson(id);
+
+  if (isLoading) {
+    return <span className="text-text-muted text-sm">Загрузка...</span>;
+  }
+  if (!selected) {
+    return (
+      <div className="flex items-center justify-between gap-2 py-1">
+        <span className="text-text-muted text-sm">Человек не найден</span>
+        {onRemove && (
+          <button type="button" className="btn-ghost text-xs text-error" onClick={onRemove}>
+            Убрать
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="text-text text-sm">
+        {selected.last_name} {selected.first_name} {selected.patronymic}
+      </span>
+      {onRemove && (
+        <button type="button" className="btn-ghost text-xs text-error" onClick={onRemove}>
+          Убрать
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MultiPersonPickerField({
+  label,
+  values,
+  excludeId,
+  onChange,
+}: {
+  label: string;
+  values: number[];
+  excludeId?: number;
+  onChange: (ids: number[]) => void;
+}) {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  return (
+    <div className="field-label">
+      {label}
+      {values.length > 0 ? (
+        <div className="rounded-lg border border-border bg-bg px-3 py-2">
+          {values.map((id) => (
+            <SelectedPersonRow
+              key={id}
+              id={id}
+              onRemove={() => onChange(values.filter((valueId) => valueId !== id))}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">Пока никто не выбран.</p>
+      )}
+      <button
+        type="button"
+        className="btn btn-secondary text-sm mt-1 self-start"
+        onClick={() => setIsSearchOpen(true)}
+      >
+        + Добавить ребёнка
+      </button>
+      {isSearchOpen && (
+        <PersonSearchDialog
+          title={`Выбрать: ${label}`}
+          excludeId={excludeId}
+          onSelect={(id) => {
+            onChange(values.includes(id) ? values : [...values, id]);
+            setIsSearchOpen(false);
+          }}
+          onClose={() => setIsSearchOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 interface PersonSearchDialogProps {
   title: string;
   genderFilter?: 'M' | 'F';
@@ -723,8 +856,6 @@ interface BurialPlaceFieldProps {
   onChange: (id: number | '') => void;
   draft: BurialPlaceDraft;
   onDraftChange: (draft: BurialPlaceDraft) => void;
-  isDraftOpen: boolean;
-  onDraftOpenChange: (open: boolean) => void;
   onYmapsReady: (instance: YMapsApi) => void;
 }
 
@@ -738,13 +869,10 @@ function BurialPlaceField({
   onChange,
   draft,
   onDraftChange,
-  isDraftOpen,
-  onDraftOpenChange,
   onYmapsReady,
 }: BurialPlaceFieldProps) {
   const [query, setQuery] = useState('');
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
-  const [showManualCoords, setShowManualCoords] = useState(false);
 
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data: selected } = useBurialPlace(value);
@@ -845,20 +973,25 @@ function BurialPlaceField({
       )}
 
       {!selected && (
-        <button
-          type="button"
-          className="btn btn-secondary text-sm"
-          onClick={() => onDraftOpenChange(!isDraftOpen)}
-        >
-          {isDraftOpen ? 'Отменить новое место' : '+ Добавить новое место'}
-        </button>
-      )}
-
-      {!selected && isDraftOpen && (
         <div className="card space-y-4">
           <p className="text-sm text-text-muted">
             Место сохранится вместе с человеком — отдельно ничего нажимать не нужно.
           </p>
+          {hasYandexMapsApiKey() ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary text-sm"
+                onClick={() => setMapDialogOpen(true)}
+              >
+                {hasCoords ? 'Изменить точку на карте' : 'Указать на карте'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-text-muted">
+              Карта недоступна (не задан ключ Яндекс.Карт) — укажите координаты вручную.
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="field-label">
               Название
@@ -894,53 +1027,30 @@ function BurialPlaceField({
             </div>
           )}
 
-          {hasYandexMapsApiKey() ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn btn-secondary text-sm"
-                onClick={() => setMapDialogOpen(true)}
-              >
-                {hasCoords ? 'Изменить точку на карте' : 'Указать на карте'}
-              </button>
-              {!showManualCoords && (
-                <button type="button" className="btn-ghost text-sm" onClick={() => setShowManualCoords(true)}>
-                  Ввести координаты вручную
-                </button>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-text-muted">
-              Карта недоступна (не задан ключ Яндекс.Карт) — укажите координаты вручную.
-            </p>
-          )}
-
-          {(!hasYandexMapsApiKey() || showManualCoords) && (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="field-label">
-                Широта
-                <input
-                  className="input"
-                  type="number"
-                  step="any"
-                  value={draft.latitude}
-                  onChange={(e) => setDraftField('latitude', e.target.value)}
-                  placeholder="55.751244"
-                />
-              </label>
-              <label className="field-label">
-                Долгота
-                <input
-                  className="input"
-                  type="number"
-                  step="any"
-                  value={draft.longitude}
-                  onChange={(e) => setDraftField('longitude', e.target.value)}
-                  placeholder="37.618423"
-                />
-              </label>
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="field-label">
+              Широта
+              <input
+                className="input"
+                type="number"
+                step="any"
+                value={draft.latitude}
+                onChange={(e) => setDraftField('latitude', e.target.value)}
+                placeholder="55.751244"
+              />
+            </label>
+            <label className="field-label">
+              Долгота
+              <input
+                className="input"
+                type="number"
+                step="any"
+                value={draft.longitude}
+                onChange={(e) => setDraftField('longitude', e.target.value)}
+                placeholder="37.618423"
+              />
+            </label>
+          </div>
         </div>
       )}
 
@@ -953,7 +1063,6 @@ function BurialPlaceField({
           onExistingPlaceSelected={(id) => {
             onChange(id);
             onDraftChange(EMPTY_BURIAL_PLACE_DRAFT);
-            onDraftOpenChange(false);
             setMapDialogOpen(false);
           }}
           onYmapsReady={onYmapsReady}
@@ -1071,6 +1180,7 @@ function MapPickerContent({
   const ymapsInstance = useYMaps(['geocode']);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: allPlaces = [] } = useAllBurialPlaces();
+  const initialViewport = getStoredMapViewport();
 
   const placeableLocations = useMemo(
     () => allPlaces.filter(
@@ -1110,6 +1220,7 @@ function MapPickerContent({
       }
     }
     onLocationPicked({ latitude: lat, longitude: lng, address, city });
+    storeMapViewport({ center: [lat, lng], zoom: FOCUSED_MAP_ZOOM });
   }, [ymapsInstance, onLocationPicked]);
 
   async function handleSearchAddress() {
@@ -1156,8 +1267,8 @@ function MapPickerContent({
       <div className="flex-1 min-h-0">
         <Map
           defaultState={{
-            center: hasPoint ? [parsedLat as number, parsedLng as number] : DEFAULT_MAP_CENTER,
-            zoom: hasPoint ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM,
+            center: hasPoint ? [parsedLat as number, parsedLng as number] : initialViewport.center,
+            zoom: hasPoint ? FOCUSED_MAP_ZOOM : initialViewport.zoom,
           }}
           width="100%"
           height="100%"
@@ -1165,6 +1276,13 @@ function MapPickerContent({
             void resolvePoint(e.get('coords'));
           }}
           modules={['control.ZoomControl']}
+          onBoundsChange={(e: { get: (key: 'newCenter' | 'newZoom') => [number, number] | number }) => {
+            const center = e.get('newCenter');
+            const zoom = e.get('newZoom');
+            if (Array.isArray(center) && typeof zoom === 'number') {
+              storeMapViewport({ center: [Number(center[0]), Number(center[1])], zoom });
+            }
+          }}
         >
           <Clusterer
             options={{ preset: 'islands#invertedVioletClusterIcons' }}

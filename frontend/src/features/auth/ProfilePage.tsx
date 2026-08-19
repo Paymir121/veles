@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
+import { usePerson, usePersons } from '@/features/persons/hooks';
 import { useAuthStore } from './useAuthStore';
-import { fetchCurrentUser, updateCurrentUser } from './api';
+import { fetchCurrentUser, setPersonUserLink, updateCurrentUser } from './api';
 import { apiClient } from '@/shared/api/client';
 
 export function ProfilePage() {
@@ -16,6 +18,14 @@ export function ProfilePage() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [personQuery, setPersonQuery] = useState('');
+  const debouncedPersonQuery = useDebouncedValue(personQuery, 300);
+  const linkedPersonId = user?.linked_person_id;
+  const { data: linkedPerson } = usePerson(linkedPersonId ?? undefined);
+  const { data: personResults = [] } = usePersons(
+    debouncedPersonQuery.trim() ? { search: debouncedPersonQuery.trim() } : undefined,
+    debouncedPersonQuery.trim().length > 0,
+  );
 
   useEffect(() => {
     fetchCurrentUser().then((u) => {
@@ -53,6 +63,38 @@ export function ProfilePage() {
   function handleLogout() {
     logout();
     navigate('/login', { replace: true });
+  }
+
+  async function refreshCurrentUser(successText: string) {
+    const refreshed = await fetchCurrentUser();
+    setUser(refreshed);
+    setMessage({ type: 'ok', text: successText });
+    setPersonQuery('');
+  }
+
+  async function handleLinkPerson(personId: number) {
+    if (!user) return;
+    setMessage(null);
+    try {
+      if (linkedPersonId && linkedPersonId !== personId) {
+        await setPersonUserLink(linkedPersonId, null);
+      }
+      await setPersonUserLink(personId, user.id);
+      await refreshCurrentUser('Связанный человек обновлён');
+    } catch {
+      setMessage({ type: 'err', text: 'Не удалось привязать человека. Попробуйте ещё раз.' });
+    }
+  }
+
+  async function handleClearLinkedPerson() {
+    if (!linkedPersonId) return;
+    setMessage(null);
+    try {
+      await setPersonUserLink(linkedPersonId, null);
+      await refreshCurrentUser('Привязка к человеку удалена');
+    } catch {
+      setMessage({ type: 'err', text: 'Не удалось удалить привязку.' });
+    }
   }
 
   async function handleExport() {
@@ -166,6 +208,49 @@ export function ProfilePage() {
           {saving ? 'Сохранение…' : 'Сохранить изменения'}
         </button>
       </form>
+
+      <div className="card flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-text">Кто вы в дереве</h2>
+        {linkedPerson ? (
+          <div className="rounded-lg border border-border bg-bg px-4 py-3">
+            <p className="text-sm text-text-muted mb-2">Сейчас привязан человек:</p>
+            <p className="font-medium">
+              {[linkedPerson.last_name, linkedPerson.first_name, linkedPerson.patronymic].filter(Boolean).join(' ')}
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button type="button" className="btn-secondary btn" onClick={handleClearLinkedPerson}>
+                Убрать привязку
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">
+            Выберите свою карточку, чтобы дерево открывалось сразу на вас.
+          </p>
+        )}
+
+        <label className="field-label">
+          Найти себя в дереве
+          <input
+            className="input"
+            value={personQuery}
+            onChange={(e) => setPersonQuery(e.target.value)}
+            placeholder="Фамилия, имя..."
+          />
+        </label>
+
+        {debouncedPersonQuery.trim() && (
+          <div className="picker-results">
+            {personResults.length > 0 ? personResults.map((person) => (
+              <button key={person.id} type="button" onClick={() => void handleLinkPerson(person.id)}>
+                {[person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' ')}
+              </button>
+            )) : (
+              <div className="px-3 py-2 text-sm text-text-muted">Ничего не найдено.</div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Data management */}
       <div className="card flex flex-col gap-4">

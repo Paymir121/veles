@@ -18,10 +18,17 @@ interface PeoplePanelProps {
 // and picking someone re-centres the chart on them.
 export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
   const visibleGroups = useMemo(() => filterTreePeople(groups, query), [groups, query]);
   const total = countPeople(groups);
   const shown = countPeople(visibleGroups);
   const showGroupLabels = groups.length > 1;
+
+  function toggleGroup(groupId: string) {
+    setCollapsedGroupIds((prev) => (
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    ));
+  }
 
   return (
     <aside
@@ -50,11 +57,20 @@ export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: Pe
           visibleGroups.map((group) => (
             <div key={group.id} className="mb-2">
               {showGroupLabels && (
-                <div className="px-2 pt-2 pb-1 text-xs uppercase tracking-wide text-text-muted">
-                  {group.label} · {group.people.length}
-                </div>
+                <button
+                  type="button"
+                  className="people-group-toggle"
+                  aria-expanded={!collapsedGroupIds.includes(group.id)}
+                  onClick={() => toggleGroup(group.id)}
+                >
+                  <span>{group.label} · {group.people.length}</span>
+                  <span>{collapsedGroupIds.includes(group.id) ? 'Показать' : 'Скрыть'}</span>
+                </button>
               )}
-              <ul className="list-none m-0 p-0">
+              <ul
+                className="list-none m-0 p-0"
+                hidden={showGroupLabels && collapsedGroupIds.includes(group.id)}
+              >
                 {group.people.map((person) => (
                   <li key={person.id}>
                     <button

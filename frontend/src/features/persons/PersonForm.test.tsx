@@ -85,7 +85,7 @@ describe('PersonForm - optional photo submission', () => {
 
     await user.type(screen.getByLabelText('Фамилия *'), 'Иванов');
     await user.type(screen.getByLabelText('Имя *'), 'Пётр');
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await user.click(screen.getAllByRole('button', { name: 'Сохранить' })[0]);
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);
     const [values, files] = handleSubmit.mock.calls[0];
@@ -113,7 +113,6 @@ describe('PersonForm - burial place create without a maps key', () => {
 
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
     await goToStep(user, 'Захоронение');
-    await user.click(screen.getByRole('button', { name: /Добавить новое место/ }));
 
     expect(
       screen.getByText(/Карта недоступна \(не задан ключ Яндекс\.Карт\)/i),
@@ -131,7 +130,6 @@ describe('PersonForm - a new burial place is saved together with the person', ()
     await user.type(screen.getByLabelText('Имя *'), 'Вадим');
     await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
     await goToStep(user, 'Захоронение');
-    await user.click(screen.getByRole('button', { name: /Добавить новое место/ }));
   }
 
   // The bug this covers: a place typed in (or a point picked on the map) used to
@@ -147,7 +145,7 @@ describe('PersonForm - a new burial place is saved together with the person', ()
     await user.type(screen.getByLabelText('Название'), 'Новое кладбище');
     await user.type(screen.getByLabelText('Широта'), '55.5');
     await user.type(screen.getByLabelText('Долгота'), '37.5');
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await user.click(screen.getAllByRole('button', { name: 'Сохранить' })[0]);
 
     await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
     expect(createPlaceMock).toHaveBeenCalledWith(
@@ -165,7 +163,7 @@ describe('PersonForm - a new burial place is saved together with the person', ()
     await fillNewPlace(user);
     await user.type(screen.getByLabelText('Широта'), '55.5');
     await user.type(screen.getByLabelText('Долгота'), '37.5');
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await user.click(screen.getAllByRole('button', { name: 'Сохранить' })[0]);
 
     await waitFor(() => expect(createPlaceMock).toHaveBeenCalled());
     expect(createPlaceMock.mock.calls[0][0].name).toBe('55.5, 37.5');
@@ -180,7 +178,7 @@ describe('PersonForm - a new burial place is saved together with the person', ()
 
     await fillNewPlace(user);
     await user.type(screen.getByLabelText('Название'), 'Новое кладбище');
-    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await user.click(screen.getAllByRole('button', { name: 'Сохранить' })[0]);
 
     expect(await screen.findByText(/Не удалось сохранить место захоронения/i)).toBeInTheDocument();
     expect(handleSubmit).not.toHaveBeenCalled();

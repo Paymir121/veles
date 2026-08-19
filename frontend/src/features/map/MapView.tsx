@@ -4,8 +4,6 @@ import { Clusterer, Map as YandexMapComponent, Placemark, YMaps } from '@pbe/rea
 import { useEffect, useMemo, useRef } from 'react';
 import type { BurialPlace } from '@/shared/types';
 import {
-  DEFAULT_MAP_CENTER,
-  DEFAULT_MAP_ZOOM,
   FOCUSED_MAP_ZOOM,
   hasYandexMapsApiKey,
   openPlacemarkBalloon,
@@ -14,6 +12,7 @@ import {
   type YandexMapInstance,
   type YandexPlacemarkInstance,
 } from '@/shared/maps/yandexMapsSetup';
+import { getStoredMapViewport, storeMapViewport } from '@/shared/maps/viewportPersistence';
 import { escapeHtmlForBalloon } from './escapeHtmlForBalloon';
 import { useBurialPlaces } from './hooks';
 import type { MapFocusRequest } from './types';
@@ -50,6 +49,7 @@ export function MapView({ focus }: MapViewProps) {
   const mapRef = useRef<YandexMapInstance | null>(null);
   const clustererRef = useRef<YandexClustererInstance | null>(null);
   const placemarkRefs = useRef(new Map<number, YandexPlacemarkInstance>());
+  const initialViewport = getStoredMapViewport();
 
   // A place with only one of the two coordinates can't exist (there's a DB
   // check constraint), but the values still arrive as JSON numbers that a
@@ -92,7 +92,19 @@ export function MapView({ focus }: MapViewProps) {
     } else {
       openBalloon();
     }
+    storeMapViewport({
+      center: [place.latitude, place.longitude],
+      zoom: FOCUSED_MAP_ZOOM,
+    });
   }, [focus, placeById]);
+
+  useEffect(() => () => {
+    const center = mapRef.current?.getCenter?.();
+    const zoom = mapRef.current?.getZoom?.();
+    if (center && typeof zoom === 'number') {
+      storeMapViewport({ center, zoom });
+    }
+  }, []);
 
   if (!hasYandexMapsApiKey()) {
     return (
@@ -128,8 +140,8 @@ export function MapView({ focus }: MapViewProps) {
       <YMaps query={yandexMapsQuery}>
         <YandexMapComponent
           defaultState={{
-            center: DEFAULT_MAP_CENTER,
-            zoom: DEFAULT_MAP_ZOOM,
+            center: initialViewport.center,
+            zoom: initialViewport.zoom,
             controls: ['zoomControl'],
           }}
           modules={['control.ZoomControl']}
@@ -137,6 +149,13 @@ export function MapView({ focus }: MapViewProps) {
           height="100%"
           instanceRef={(instance: unknown) => {
             mapRef.current = (instance as YandexMapInstance) ?? null;
+          }}
+          onBoundsChange={(e: { get: (key: 'newCenter' | 'newZoom') => [number, number] | number }) => {
+            const center = e.get('newCenter');
+            const zoom = e.get('newZoom');
+            if (Array.isArray(center) && typeof zoom === 'number') {
+              storeMapViewport({ center: [Number(center[0]), Number(center[1])], zoom });
+            }
           }}
         >
           <Clusterer

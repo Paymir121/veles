@@ -33,10 +33,9 @@ export const yandexMapsQuery = {
   lang: 'ru_RU' as const,
 };
 
-// Default view: all of Russia, since the project is Russian and we don't
-// know where the family's burial places are until data loads.
-export const DEFAULT_MAP_CENTER: [number, number] = [61.698653, 99.505405];
-export const DEFAULT_MAP_ZOOM = 3;
+// Default view: Votkinsk, Udmurt Republic.
+export const DEFAULT_MAP_CENTER: [number, number] = [57.0518, 53.9872];
+export const DEFAULT_MAP_ZOOM = 12;
 export const FOCUSED_MAP_ZOOM = 14;
 
 // Minimal shape of the ymaps.Map instance methods callers actually use, so
@@ -53,6 +52,8 @@ export interface YandexMapInstance {
     zoom?: number,
     options?: { duration?: number },
   ) => { then: (onDone: () => void, onFail?: () => void) => unknown } | undefined;
+  getCenter?: () => [number, number];
+  getZoom?: () => number;
 }
 
 export interface YandexPlacemarkInstance {

@@ -38,6 +38,8 @@ export interface Person {
   grave_photo: string | null;
   extra_info: ExtraInfoItem[];
   notes: string;
+  children: PersonSummary[];
+  siblings: PersonSummary[];
   linked_user: number | null;
   created_by: number | null;
   updated_by: number | null;
@@ -145,6 +147,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  linked_person_id: number | null;
 }
 
 // DRF's default list pagination shape. /api/tree/ and /api/search/ are

@@ -1,4 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.db.models import Q
 from rest_framework import serializers
 
 from .models import BurialPlace, Person, Union
@@ -79,6 +81,12 @@ class PersonSearchSerializer(PersonListSerializer):
 
 class PersonSerializer(serializers.ModelSerializer):
     extra_info = serializers.JSONField(validators=[validate_extra_info], required=False)
+    children = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        write_only=True,
+        required=False,
+    )
+    force_children_reassign = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Person
@@ -103,6 +111,8 @@ class PersonSerializer(serializers.ModelSerializer):
             "grave_photo",
             "extra_info",
             "notes",
+            "children",
+            "force_children_reassign",
             "linked_user",
             "created_by",
             "updated_by",
@@ -120,6 +130,12 @@ class PersonSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"linked_user": "You may only link your own account to a person."}
                 )
+            if self.instance is not None and self.instance.linked_user_id not in (None, request.user.pk):
+                raise serializers.ValidationError(
+                    {"linked_user": "This person is already linked to another account."}
+                )
+
+        attrs = self._validate_children(attrs)
 
         merged = _build_merged_instance(Person, self.instance, attrs)
         try:
@@ -128,6 +144,167 @@ class PersonSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_translate_django_error(exc))
 
         return attrs
+
+    def _validate_children(self, attrs):
+        children_ids = attrs.get("children")
+        if children_ids is None:
+            return attrs
+
+        unique_ids = list(dict.fromkeys(children_ids))
+        attrs["children"] = unique_ids
+        if not unique_ids:
+            return attrs
+
+        gender = attrs.get("gender")
+        if gender is None and self.instance is not None:
+            gender = self.instance.gender
+        if gender not in ("M", "F"):
+            raise serializers.ValidationError(
+                {"children": "Choose a male or female gender before assigning children."}
+            )
+
+        children = list(Person.objects.filter(pk__in=unique_ids).order_by("pk"))
+        found_ids = {child.pk for child in children}
+        missing = [child_id for child_id in unique_ids if child_id not in found_ids]
+        if missing:
+            raise serializers.ValidationError(
+                {"children": f"Unknown child ids: {', '.join(str(child_id) for child_id in missing)}"}
+            )
+
+        if self.instance is not None and self.instance.pk in found_ids:
+            raise serializers.ValidationError(
+                {"children": "A person cannot be their own child."}
+            )
+
+        target_field = "father" if gender == "M" else "mother"
+        current_person_id = self.instance.pk if self.instance is not None else None
+        force_reassign = attrs.get("force_children_reassign", False)
+        conflicts = []
+        for child in children:
+            current_parent_id = getattr(child, f"{target_field}_id")
+            if current_parent_id is None or current_parent_id == current_person_id:
+                continue
+            conflicts.append(
+                {
+                    "id": child.pk,
+                    "name": str(child),
+                    "field": target_field,
+                    "current_parent_id": current_parent_id,
+                }
+            )
+
+        if conflicts and not force_reassign:
+            raise serializers.ValidationError(
+                {
+                    "children": "Some selected children already have this parent field filled.",
+                    "children_conflicts": conflicts,
+                }
+            )
+
+        attrs["_resolved_children"] = children
+        attrs["_children_parent_field"] = target_field
+        return attrs
+
+    def _save_children(self, person, validated_data):
+        children = validated_data.pop("_resolved_children", None)
+        target_field = validated_data.pop("_children_parent_field", None)
+        validated_data.pop("force_children_reassign", None)
+        if children is None or target_field is None:
+            return
+
+        selected_ids = {child.pk for child in children}
+        if target_field == "father":
+            current_children = Person.objects.filter(father=person).exclude(pk__in=selected_ids)
+            for child in current_children:
+                child.father = None
+                child.full_clean()
+                child.save(update_fields=["father"])
+        else:
+            current_children = Person.objects.filter(mother=person).exclude(pk__in=selected_ids)
+            for child in current_children:
+                child.mother = None
+                child.full_clean()
+                child.save(update_fields=["mother"])
+
+        for child in children:
+            setattr(child, target_field, person)
+            child.full_clean()
+            child.save(update_fields=[target_field])
+
+    def _normalize_linked_user(self, person, validated_data):
+        linked_user = validated_data.get("linked_user", serializers.empty)
+        if linked_user in (serializers.empty, None):
+            return
+        Person.objects.filter(linked_user=linked_user).exclude(pk=person.pk).update(linked_user=None)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        validated_data.pop("children", None)
+        children = validated_data.pop("_resolved_children", None)
+        target_field = validated_data.pop("_children_parent_field", None)
+        validated_data.pop("force_children_reassign", None)
+        linked_user = validated_data.get("linked_user", serializers.empty)
+        if linked_user not in (serializers.empty, None):
+            Person.objects.filter(linked_user=linked_user).update(linked_user=None)
+        person = super().create(validated_data)
+        if children is not None and target_field is not None:
+            validated_data["_resolved_children"] = children
+            validated_data["_children_parent_field"] = target_field
+        self._save_children(person, validated_data)
+        return person
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        validated_data.pop("children", None)
+        children = validated_data.pop("_resolved_children", None)
+        target_field = validated_data.pop("_children_parent_field", None)
+        validated_data.pop("force_children_reassign", None)
+        linked_user = validated_data.get("linked_user", serializers.empty)
+        if linked_user not in (serializers.empty, None):
+            Person.objects.filter(linked_user=linked_user).exclude(pk=instance.pk).update(linked_user=None)
+        person = super().update(instance, validated_data)
+        if children is not None and target_field is not None:
+            validated_data["_resolved_children"] = children
+            validated_data["_children_parent_field"] = target_field
+        self._save_children(person, validated_data)
+        return person
+
+
+class PersonRelationSerializer(PersonListSerializer):
+    class Meta(PersonListSerializer.Meta):
+        fields = PersonListSerializer.Meta.fields
+
+
+class PersonDetailSerializer(PersonSerializer):
+    children = serializers.SerializerMethodField()
+    siblings = serializers.SerializerMethodField()
+
+    class Meta(PersonSerializer.Meta):
+        fields = PersonSerializer.Meta.fields + ["siblings"]
+
+    def get_children(self, obj):
+        queryset = (
+            Person.objects.filter(Q(father=obj) | Q(mother=obj))
+            .order_by("last_name", "first_name")
+            .distinct()
+        )
+        return PersonRelationSerializer(queryset, many=True, context=self.context).data
+
+    def get_siblings(self, obj):
+        filters = Q()
+        if obj.father_id:
+            filters |= Q(father_id=obj.father_id)
+        if obj.mother_id:
+            filters |= Q(mother_id=obj.mother_id)
+        if not filters:
+            return []
+        queryset = (
+            Person.objects.filter(filters)
+            .exclude(pk=obj.pk)
+            .order_by("last_name", "first_name")
+            .distinct()
+        )
+        return PersonRelationSerializer(queryset, many=True, context=self.context).data
 
 
 class BurialPlaceSerializer(serializers.ModelSerializer):

@@ -32,35 +32,27 @@ function buildElkGraph(data: TreeNode[]): { elkNode: ElkNode; rfEdges: Edge[] } 
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
       edges.push({ id: edgeId, sources: [parentId], targets: [node.id] });
-      rfEdges.push({ id: edgeId, source: parentId, target: node.id, type: 'smoothstep' });
-    }
-
-    for (const spouseId of node.rels.spouses) {
-      if (!ids.has(spouseId)) continue;
-      const key = [node.id, spouseId].sort().join('--');
-      const edgeId = `spouse-${key}`;
-      if (edgeSet.has(edgeId)) continue;
-      edgeSet.add(edgeId);
-      edges.push({ id: edgeId, sources: [node.id], targets: [spouseId] });
       rfEdges.push({
         id: edgeId,
-        source: node.id,
-        target: spouseId,
-        type: 'straight',
-        style: { strokeDasharray: '6 3' },
+        source: parentId,
+        target: node.id,
+        type: 'smoothstep',
+        sourceHandle: undefined,
+        targetHandle: undefined,
       });
     }
+
   }
 
   const elkNode: ElkNode = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
-      'elk.direction': 'DOWN',
-      'elk.spacing.nodeNode': '40',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+      'elk.direction': 'UP',
+      'elk.spacing.nodeNode': '70',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '110',
       'elk.separateConnectedComponents': 'true',
-      'elk.spacing.componentComponent': '80',
+      'elk.spacing.componentComponent': '140',
     },
     children,
     edges,

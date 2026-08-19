@@ -14,10 +14,11 @@ import {
 } from './api';
 import type { BurialPlaceCreatePayload, PersonFormValues } from './types';
 
-export function usePersons(params?: PersonListParams) {
+export function usePersons(params?: PersonListParams, enabled = true) {
   return useQuery({
     queryKey: ['persons', params],
     queryFn: () => fetchPersons(params),
+    enabled,
   });
 }
 

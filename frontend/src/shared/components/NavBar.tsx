@@ -35,27 +35,7 @@ export function NavBar() {
         <Link to="/" className="font-bold text-lg text-accent-secondary shrink-0 no-underline">Велес</Link>
 
         {/* Burger toggle — below md */}
-        <button
-          type="button"
-          className="btn-ghost md:hidden ml-auto"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            {menuOpen ? (
-              <>
-                <line x1="6" y1="6" x2="18" y2="18" />
-                <line x1="6" y1="18" x2="18" y2="6" />
-              </>
-            ) : (
-              <>
-                <line x1="4" y1="7" x2="20" y2="7" />
-                <line x1="4" y1="12" x2="20" y2="12" />
-                <line x1="4" y1="17" x2="20" y2="17" />
-              </>
-            )}
-          </svg>
-        </button>
+        <div className="md:hidden ml-auto h-10" aria-hidden="true" />
 
         {/* Desktop links — md+ */}
         <nav className="hidden md:flex items-center gap-2 flex-1">
@@ -102,8 +82,30 @@ export function NavBar() {
       </div>
 
       {/* Mobile dropdown — below md */}
+      <button
+        type="button"
+        className="mobile-menu-fab md:hidden"
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
+        aria-expanded={menuOpen}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          {menuOpen ? (
+            <>
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </>
+          ) : (
+            <>
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </>
+          )}
+        </svg>
+      </button>
       {menuOpen && (
-        <nav className="md:hidden border-t border-border bg-bg px-3 py-2 flex flex-col gap-1">
+        <nav className="mobile-menu-panel md:hidden border border-border bg-bg px-3 py-2 flex flex-col gap-1">
           <NavLink to="/" end className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
             Главная
           </NavLink>
