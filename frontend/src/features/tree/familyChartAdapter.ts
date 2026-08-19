@@ -3,12 +3,9 @@
 // when we switched to @xyflow/react + elkjs, but these pure helpers are still
 // used by treePeople.ts and TreePage.tsx.
 import type { TreeNode, TreeNodeData } from '@/shared/types';
+import { formatFullName } from '@/shared/utils/formatName';
 
-export function formatFullName(info: TreeNodeData): string {
-  return (
-    [info.last_name, info.first_name, info.patronymic].filter(Boolean).join(' ') || 'Без имени'
-  );
-}
+export { formatFullName };
 
 export function formatLifespan(info: TreeNodeData): string {
   const birth = info.birth_date || '?';
@@ -60,6 +57,3 @@ export function findFamilyIslands(data: TreeNode[]): FamilyIsland[] {
   return islands;
 }
 
-export function findWidestRootId(data: TreeNode[]): string | undefined {
-  return findFamilyIslands(data)[0]?.id;
-}

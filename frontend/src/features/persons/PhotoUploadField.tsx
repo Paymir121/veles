@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface PhotoUploadFieldProps {
   label: string;
@@ -9,8 +9,18 @@ interface PhotoUploadFieldProps {
 
 export function PhotoUploadField({ label, file, existingUrl, onChange }: PhotoUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
-  const previewSrc = file ? URL.createObjectURL(file) : existingUrl;
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setBlobUrl(null);
+  }, [file]);
+
+  const previewSrc = blobUrl ?? existingUrl;
 
   return (
     <div className="space-y-3">

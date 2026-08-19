@@ -24,7 +24,7 @@ interface MapViewProps {
   focus?: MapFocusRequest | null;
 }
 
-interface PlaceableBurialPlace extends BurialPlace {
+interface BurialPlaceWithCoords extends BurialPlace {
   latitude: number;
   longitude: number;
 }
@@ -55,7 +55,7 @@ export function MapView({ focus }: MapViewProps) {
   // check constraint), but the values still arrive as JSON numbers that a
   // misconfigured backend could ship as strings - hence Number.isFinite rather
   // than a null check, which "55.7" would pass.
-  const placeableLocations = useMemo<PlaceableBurialPlace[]>(
+  const placeableLocations = useMemo<BurialPlaceWithCoords[]>(
     () =>
       burialPlaces
         .map((place) => ({

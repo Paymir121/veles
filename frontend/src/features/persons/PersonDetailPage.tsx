@@ -6,7 +6,8 @@ import {
   hasYandexMapsApiKey,
   yandexMapsQuery,
 } from '@/shared/maps/yandexMapsSetup';
-import { useBurialPlaceOption, useDeletePerson, usePerson } from './hooks';
+import { escapeHtml } from '@/shared/utils/escapeHtml';
+import { useBurialPlace, useDeletePerson, usePerson } from './hooks';
 
 const GENDER_LABELS: Record<string, string> = {
   M: 'Мужской',
@@ -22,7 +23,7 @@ export function PersonDetailPage() {
   const { data: person, isLoading, isError } = usePerson(id);
   const { data: father } = usePerson(person?.father ?? undefined);
   const { data: mother } = usePerson(person?.mother ?? undefined);
-  const { data: burialPlace } = useBurialPlaceOption(person?.burial_place ?? undefined);
+  const { data: burialPlace } = useBurialPlace(person?.burial_place ?? undefined);
   const deleteMutation = useDeletePerson();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -184,9 +185,9 @@ export function PersonDetailPage() {
                     geometry={[burialPlace.latitude, burialPlace.longitude]}
                     modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
                     properties={{
-                      balloonContentHeader: burialPlace.name,
-                      balloonContentBody: burialPlace.city || '',
-                      hintContent: burialPlace.name,
+                      balloonContentHeader: escapeHtml(burialPlace.name),
+                      balloonContentBody: escapeHtml(burialPlace.city || ''),
+                      hintContent: escapeHtml(burialPlace.name),
                     }}
                   />
                 </YandexMapComponent>

@@ -78,13 +78,37 @@ class PersonSearchSerializer(PersonListSerializer):
 
 
 class PersonSerializer(serializers.ModelSerializer):
-    # Declared explicitly (not just relying on DRF auto-picking up the model
-    # field's validators) so the shape rule is visible on the serializer.
     extra_info = serializers.JSONField(validators=[validate_extra_info], required=False)
 
     class Meta:
         model = Person
-        fields = "__all__"
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "patronymic",
+            "maiden_name",
+            "gender",
+            "birth_date",
+            "birth_date_text",
+            "birth_place",
+            "status",
+            "death_date",
+            "death_date_text",
+            "father",
+            "mother",
+            "burial_place",
+            "burial_plot_details",
+            "photo",
+            "grave_photo",
+            "extra_info",
+            "notes",
+            "linked_user",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ["created_by", "updated_by", "created_at", "updated_at"]
 
     def validate(self, attrs):
@@ -107,18 +131,40 @@ class PersonSerializer(serializers.ModelSerializer):
 
 
 class BurialPlaceSerializer(serializers.ModelSerializer):
-    # Reverse accessor Person.burial_place -> related_name="persons".
     persons = PersonListSerializer(many=True, read_only=True)
 
     class Meta:
         model = BurialPlace
-        fields = "__all__"
+        fields = [
+            "id",
+            "name",
+            "city",
+            "latitude",
+            "longitude",
+            "address",
+            "description",
+            "persons",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class UnionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Union
-        fields = "__all__"
+        fields = [
+            "id",
+            "person1",
+            "person2",
+            "date_start",
+            "date_start_text",
+            "date_end",
+            "date_end_text",
+            "status",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         merged = _build_merged_instance(Union, self.instance, attrs)

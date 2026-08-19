@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { SearchBar } from '@/features/search/SearchBar';
-import { formatPersonName } from '@/features/search/searchItems';
 import type { SearchSelection } from '@/features/search/types';
+import { formatFullName } from '@/shared/utils/formatName';
 import type { BurialPlaceBrief } from '@/shared/types';
 import { MapView } from './MapView';
 import type { MapFocusRequest } from './types';
@@ -39,7 +39,7 @@ export function MapPage() {
     const person = selection.person;
     const place = person.burial_place_detail;
     if (!place) {
-      setNotice(`У ${formatPersonName(person)} не указано место захоронения.`);
+      setNotice(`У ${formatFullName(person)} не указано место захоронения.`);
       return;
     }
     if (!hasCoordinates(place)) {

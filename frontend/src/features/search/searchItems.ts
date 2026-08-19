@@ -1,9 +1,6 @@
 import type { BurialPlace, PersonSearchResult, PersonSummary, SearchResults } from '@/shared/types';
+import { formatFullName } from '@/shared/utils/formatName';
 import type { SearchSelection } from './types';
-
-// Pure helpers behind the search dropdown. Kept out of the components so the
-// flattening (needed for keyboard navigation over two result groups as if
-// they were one list) and the match highlighting can be tested directly.
 
 export type SearchItemGroup = 'persons' | 'places';
 
@@ -20,12 +17,8 @@ export const GROUP_LABELS: Record<SearchItemGroup, string> = {
   places: 'Места захоронения',
 };
 
-export function formatPersonName(person: PersonSummary): string {
-  return (
-    [person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' ') ||
-    'Без имени'
-  );
-}
+/** @deprecated Use formatFullName from shared/utils/formatName instead. */
+export const formatPersonName = formatFullName;
 
 function yearOf(isoDate: string | null, freeText: string): string {
   if (isoDate) return isoDate.slice(0, 4);
@@ -66,7 +59,7 @@ export function buildSearchItems(results: SearchResults | undefined): SearchItem
   const persons: SearchItem[] = results.persons.map((person) => ({
     key: `person-${person.id}`,
     group: 'persons',
-    title: formatPersonName(person),
+    title: formatFullName(person),
     subtitle: personSubtitle(person),
     selection: { kind: 'person', person },
   }));

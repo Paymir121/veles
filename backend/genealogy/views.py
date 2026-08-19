@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status
 from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -97,15 +97,12 @@ class TreeView(APIView):
 class ExportView(APIView):
     """Export the entire DB as JSON compatible with demo_data.json / seed_demo_data."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
-        id_to_key: dict[int, str] = {}
-
         burial_places_out = []
         for bp in BurialPlace.objects.all():
             key = f"bp_{bp.pk}"
-            id_to_key[f"bp_{bp.pk}"] = key
             entry: dict = {"key": key, "name": bp.name}
             if bp.city:
                 entry["city"] = bp.city
@@ -204,7 +201,7 @@ class ImportView(APIView):
     new records are created.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     parser_classes = [MultiPartParser]
 
     def post(self, request):

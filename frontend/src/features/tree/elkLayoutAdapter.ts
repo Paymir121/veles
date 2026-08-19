@@ -1,6 +1,7 @@
 import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import type { Node, Edge } from '@xyflow/react';
-import type { TreeNode, TreeNodeData } from '@/shared/types';
+import type { TreeNode } from '@/shared/types';
+import { formatShortName } from '@/shared/utils/formatName';
 
 export interface PersonNodeData extends Record<string, unknown> {
   label: string;
@@ -68,10 +69,6 @@ function buildElkGraph(data: TreeNode[]): { elkNode: ElkNode; rfEdges: Edge[] } 
   return { elkNode, rfEdges };
 }
 
-function formatFullName(d: TreeNodeData): string {
-  return [d.last_name, d.first_name].filter(Boolean).join(' ') || 'Без имени';
-}
-
 export async function layoutTree(
   data: TreeNode[],
 ): Promise<{ nodes: Node<PersonNodeData>[]; edges: Edge[] }> {
@@ -88,7 +85,7 @@ export async function layoutTree(
       type: 'person',
       position: { x: child.x ?? 0, y: child.y ?? 0 },
       data: {
-        label: formatFullName(person.data),
+        label: formatShortName(person.data),
         status: person.data.status,
       },
       width: NODE_WIDTH,

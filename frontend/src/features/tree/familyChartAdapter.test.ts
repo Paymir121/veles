@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
 import {
   findFamilyIslands,
-  findWidestRootId,
   formatFullName,
   formatLifespan,
 } from './familyChartAdapter';
@@ -73,7 +72,7 @@ function makeNode(
   };
 }
 
-describe('findFamilyIslands / findWidestRootId', () => {
+describe('findFamilyIslands', () => {
   it('lists parentless people, widest bloodline first', () => {
     const tree = [
       makeNode(
@@ -101,7 +100,7 @@ describe('findFamilyIslands / findWidestRootId', () => {
     const islands = findFamilyIslands(tree);
     expect(islands.map((island) => island.id)).toEqual(['root', 'inlaw']);
     expect(islands[0].descendantCount).toBeGreaterThan(islands[1].descendantCount);
-    expect(findWidestRootId(tree)).toBe('root');
+    expect(islands[0].id).toBe('root');
   });
 
   it('includes a disconnected parentless family as its own island', () => {
@@ -113,6 +112,6 @@ describe('findFamilyIslands / findWidestRootId', () => {
 
     const islands = findFamilyIslands(tree);
     expect(islands.map((island) => island.id)).toEqual(['a', 'c']);
-    expect(findWidestRootId(tree)).toBe('a');
+    expect(islands[0].id).toBe('a');
   });
 });

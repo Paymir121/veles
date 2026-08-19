@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
@@ -31,19 +31,17 @@ function TreeViewInner({ focusPersonId }: TreeViewProps) {
   const [layoutReady, setLayoutReady] = useState(false);
   const { fitView } = useReactFlow();
 
-  const stableData = useMemo(() => data, [data]);
-
   useEffect(() => {
-    if (!stableData || stableData.length === 0) return;
+    if (!data || data.length === 0) return;
     let cancelled = false;
-    layoutTree(stableData).then((result) => {
+    layoutTree(data).then((result) => {
       if (cancelled) return;
       setNodes(result.nodes);
       setEdges(result.edges);
       setLayoutReady(true);
     });
     return () => { cancelled = true; };
-  }, [stableData, setNodes, setEdges]);
+  }, [data, setNodes, setEdges]);
 
   useEffect(() => {
     if (!layoutReady || nodes.length === 0) return;

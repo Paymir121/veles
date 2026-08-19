@@ -22,7 +22,7 @@ interface GeocodeResultLike {
 import { ExtraInfoListEditor } from './ExtraInfoListEditor';
 import { PhotoUploadField } from './PhotoUploadField';
 import {
-  useBurialPlaceOption,
+  useBurialPlace,
   useBurialPlaceSearch,
   useCreateBurialPlace,
   usePerson,
@@ -105,7 +105,7 @@ export function PersonForm({
     }
   }
 
-  const hasPlaceDraft = isDeceased && values.burial_place === '' && isBurialPlaceDraftFilled(placeDraft);
+  const shouldCreatePlaceOnSubmit = isDeceased && values.burial_place === '' && isBurialPlaceDraftFilled(placeDraft);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,7 +116,7 @@ export function PersonForm({
     }
 
     let submittedValues = values;
-    if (hasPlaceDraft) {
+    if (shouldCreatePlaceOnSubmit) {
       setIsSavingPlace(true);
       try {
         const coordinates = await resolveDraftCoordinates(placeDraft, ymapsRef.current);
@@ -247,7 +247,7 @@ export function PersonForm({
         />
       )}
 
-      {hasPlaceDraft && (
+      {shouldCreatePlaceOnSubmit && (
         <p className="text-xs text-text-muted -mt-3">
           Новое место «{placeDraft.name || 'без названия'}» будет создано вместе с этой записью.
         </p>
@@ -744,7 +744,7 @@ function BurialPlaceField({
   const [showManualCoords, setShowManualCoords] = useState(false);
 
   const debouncedQuery = useDebouncedValue(query, 300);
-  const { data: selected } = useBurialPlaceOption(value);
+  const { data: selected } = useBurialPlace(value);
   const { data: results = [] } = useBurialPlaceSearch(debouncedQuery);
 
   function setDraftField<K extends keyof BurialPlaceDraft>(key: K, fieldValue: string) {

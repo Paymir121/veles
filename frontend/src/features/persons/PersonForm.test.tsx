@@ -9,7 +9,7 @@ vi.mock('./hooks', () => ({
   usePerson: vi.fn(() => ({ data: undefined })),
   usePersons: vi.fn(() => ({ data: [] })),
   useBurialPlaceSearch: vi.fn(() => ({ data: [] })),
-  useBurialPlaceOption: vi.fn(() => ({ data: undefined })),
+  useBurialPlace: vi.fn(() => ({ data: undefined })),
   useCreateBurialPlace: vi.fn(() => ({
     mutateAsync: createPlaceMock,
     isPending: false,

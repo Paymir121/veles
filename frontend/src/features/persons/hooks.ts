@@ -82,7 +82,7 @@ export function useBurialPlaceSearch(query: string) {
   });
 }
 
-export function useBurialPlaceOption(id: number | '' | null | undefined) {
+export function useBurialPlace(id: number | '' | null | undefined) {
   return useQuery({
     queryKey: ['burial-places', id],
     queryFn: () => fetchBurialPlace(id as number),

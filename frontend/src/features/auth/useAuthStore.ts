@@ -1,11 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/shared/types';
-
-interface JwtPair {
-  access: string;
-  refresh: string;
-}
+import type { JwtPair } from './api';
 
 interface AuthState {
   accessToken: string | null;
