@@ -144,25 +144,6 @@
       "extra_info": []
     },
     {
-      "key": "tatyana",
-      "first_name": "Татьяна",
-      "last_name": "Морозова",
-      "patronymic": "Игоревна",
-      "maiden_name": "Белова",
-      "gender": "F",
-      "birth_date": "1958-02-17",
-      "status": "alive",
-      "extra_info": [
-        {
-          "category": "work",
-          "title": "Врач-педиатр",
-          "date_from": "1981",
-          "date_to": ""
-        }
-      ],
-      "notes": "Вторая жена Виктора, поженились после смерти Ольги."
-    },
-    {
       "key": "irina",
       "first_name": "Ирина",
       "last_name": "Соколова",

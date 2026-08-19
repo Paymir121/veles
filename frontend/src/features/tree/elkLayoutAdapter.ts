@@ -27,7 +27,7 @@ export interface TreeEdgeData extends Record<string, unknown> {
 
 const PERSON_NODE_WIDTH = 132;
 const PERSON_NODE_HEIGHT = 70;
-const FAMILY_NODE_WIDTH = 8;
+const FAMILY_NODE_WIDTH = 18;
 const FAMILY_NODE_HEIGHT = 8;
 const COMPONENT_GAP_X = 110;
 
@@ -52,6 +52,15 @@ interface BuiltGraph {
   elkNode: ElkNode;
   rfEdges: Edge<TreeEdgeData>[];
   records: Map<string, LayoutRecord>;
+}
+
+function pickHandleId(index: number, total: number, side: 'personSource' | 'familyTarget'): string {
+  const personHandles = ['top-left', 'top-center', 'top-right'] as const;
+  const familyHandles = ['bottom-left', 'bottom-center', 'bottom-right'] as const;
+  const handles = side === 'personSource' ? personHandles : familyHandles;
+  if (total <= 1) return handles[1];
+  if (total === 2) return handles[index === 0 ? 0 : 2];
+  return handles[Math.min(index, handles.length - 1)];
 }
 
 function assignGenerations(data: TreeNode[]): Map<string, number> {
@@ -141,6 +150,14 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
   const families = buildFamilyUnits(data);
   const byId = new Map(data.map((person) => [person.id, person]));
   const generations = assignGenerations(data);
+  const familiesByParent = new Map<string, FamilyUnit[]>();
+  for (const family of families) {
+    for (const parentId of family.parentIds) {
+      const list = familiesByParent.get(parentId) ?? [];
+      list.push(family);
+      familiesByParent.set(parentId, list);
+    }
+  }
 
   for (const person of data) {
     records.set(person.id, {
@@ -199,6 +216,18 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
   for (const family of families) {
     for (const parentId of family.parentIds) {
       if (!records.has(parentId)) continue;
+      const parentFamilies = familiesByParent.get(parentId) ?? [family];
+      const familyIndexForParent = parentFamilies.findIndex((item) => item.id === family.id);
+      const parentHandleId = pickHandleId(
+        familyIndexForParent >= 0 ? familyIndexForParent : 0,
+        parentFamilies.length,
+        'personSource',
+      );
+      const familyTargetHandleId = pickHandleId(
+        family.parentIds.findIndex((id) => id === parentId),
+        family.parentIds.length,
+        'familyTarget',
+      );
       const edgeId = `e-${parentId}-${family.id}`;
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
@@ -207,6 +236,8 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         id: edgeId,
         source: parentId,
         target: family.id,
+        sourceHandle: parentHandleId,
+        targetHandle: familyTargetHandleId,
         type: 'smoothstep',
         data: {
           kind: (byId.get(parentId) && getPersonVisualKind(byId.get(parentId) as TreeNode) === 'root')
@@ -235,6 +266,8 @@ function buildElkGraph(data: TreeNode[]): BuiltGraph {
         id: edgeId,
         source: family.id,
         target: childId,
+        sourceHandle: 'top-center',
+        targetHandle: 'bottom-center',
         data: { kind: getEdgeKindToPerson(byId.get(childId) as TreeNode) },
         type: 'smoothstep',
         style: edgeStyleForKind(getEdgeKindToPerson(byId.get(childId) as TreeNode)),

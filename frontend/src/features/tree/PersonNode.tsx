@@ -14,12 +14,14 @@ export function PersonNode({ data }: PersonNodeProps) {
 
   return (
     <div className="person-node">
-      <Handle type="target" position={Position.Bottom} className="!invisible" />
+      <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible" />
       <div className="person-node-hitbox">
         <div className={`person-node-circle ${circleClass}`} aria-hidden="true" />
         <div className="person-node-label">{data.label}</div>
       </div>
-      <Handle type="source" position={Position.Top} className="!invisible" />
+      <Handle id="top-left" type="source" position={Position.Top} className="!invisible !left-[30%]" />
+      <Handle id="top-center" type="source" position={Position.Top} className="!invisible !left-1/2" />
+      <Handle id="top-right" type="source" position={Position.Top} className="!invisible !left-[70%]" />
     </div>
   );
 }
@@ -27,8 +29,11 @@ export function PersonNode({ data }: PersonNodeProps) {
 export function FamilyNode(_props: FamilyNodeProps) {
   return (
     <div className="family-node" aria-hidden="true">
-      <Handle type="target" position={Position.Bottom} className="!invisible" />
-      <Handle type="source" position={Position.Top} className="!invisible" />
+      <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
+      <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
+      <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />
+      <div className="family-node-bar" />
+      <Handle id="top-center" type="source" position={Position.Top} className="!invisible !left-1/2" />
     </div>
   );
 }

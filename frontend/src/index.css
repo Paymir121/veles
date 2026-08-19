@@ -277,10 +277,20 @@ body {
 }
 
 .family-node {
-  width: 8px;
+  width: 18px;
   height: 8px;
-  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+}
+
+.family-node-bar {
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-muted) 65%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg) 70%, transparent);
 }
 
 /* ── Map ────────────────────────────────────────────────────────────────── */
