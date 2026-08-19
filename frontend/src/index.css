@@ -282,6 +282,25 @@ body {
   }
 }
 
+.map-balloon-select-btn {
+  display: block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--color-accent, #60a5fa);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+
+.map-balloon-select-btn:hover {
+  opacity: 0.85;
+}
+
 /* ── Map picker dialog ──────────────────────────────────────────────────── */
 
 .map-picker-dialog {

@@ -950,6 +950,12 @@ function BurialPlaceField({
           latitude={draft.latitude}
           longitude={draft.longitude}
           onLocationPicked={handleLocationPicked}
+          onExistingPlaceSelected={(id) => {
+            onChange(id);
+            onDraftChange(EMPTY_BURIAL_PLACE_DRAFT);
+            onDraftOpenChange(false);
+            setMapDialogOpen(false);
+          }}
           onYmapsReady={onYmapsReady}
           onClose={() => setMapDialogOpen(false)}
         />
@@ -973,6 +979,7 @@ interface MapPickerDialogProps {
   latitude: string;
   longitude: string;
   onLocationPicked: (location: GeocodedLocation) => void;
+  onExistingPlaceSelected: (id: number) => void;
   onYmapsReady: (instance: YMapsApi) => void;
   onClose: () => void;
 }
@@ -981,6 +988,7 @@ function MapPickerDialog({
   latitude,
   longitude,
   onLocationPicked,
+  onExistingPlaceSelected,
   onYmapsReady,
   onClose,
 }: MapPickerDialogProps) {
@@ -1012,6 +1020,7 @@ function MapPickerDialog({
               latitude={latitude}
               longitude={longitude}
               onLocationPicked={onLocationPicked}
+              onExistingPlaceSelected={onExistingPlaceSelected}
               onYmapsReady={onYmapsReady}
             />
           </YMaps>
@@ -1028,27 +1037,35 @@ interface MapPickerContentProps {
   latitude: string;
   longitude: string;
   onLocationPicked: (location: GeocodedLocation) => void;
+  onExistingPlaceSelected: (id: number) => void;
   onYmapsReady: (instance: YMapsApi) => void;
 }
 
-function buildBalloonContent(place: BurialPlace): string {
+function buildPickerBalloonContent(place: BurialPlace): string {
   const persons = place.persons ?? [];
-  if (persons.length === 0) return '<p>Нет привязанных записей.</p>';
-  const items = persons
-    .map((p) => {
-      const name = escapeHtml(
-        [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '),
-      );
-      return `<li><a href="/person/${p.id}">${name}</a></li>`;
-    })
-    .join('');
-  return `<ul class="map-balloon-persons">${items}</ul>`;
+  let html = '';
+  if (persons.length > 0) {
+    const items = persons
+      .map((p) => {
+        const name = escapeHtml(
+          [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(' '),
+        );
+        return `<li>${name}</li>`;
+      })
+      .join('');
+    html += `<ul class="map-balloon-persons">${items}</ul>`;
+  } else {
+    html += '<p>Нет привязанных записей.</p>';
+  }
+  html += `<button class="map-balloon-select-btn" data-place-id="${place.id}">Выбрать это место</button>`;
+  return html;
 }
 
 function MapPickerContent({
   latitude,
   longitude,
   onLocationPicked,
+  onExistingPlaceSelected,
   onYmapsReady,
 }: MapPickerContentProps) {
   const ymapsInstance = useYMaps(['geocode']);
@@ -1107,6 +1124,17 @@ function MapPickerContent({
     }
   }
 
+  useEffect(() => {
+    function handleBalloonBtnClick(e: MouseEvent) {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.map-balloon-select-btn');
+      if (!btn) return;
+      const placeId = Number(btn.dataset.placeId);
+      if (placeId) onExistingPlaceSelected(placeId);
+    }
+    document.addEventListener('click', handleBalloonBtnClick);
+    return () => document.removeEventListener('click', handleBalloonBtnClick);
+  }, [onExistingPlaceSelected]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex gap-2 p-3">
@@ -1146,7 +1174,7 @@ function MapPickerContent({
                 properties={{
                   hintContent: `${place.name}${place.city ? ` (${place.city})` : ''}`,
                   balloonContentHeader: escapeHtml(place.name),
-                  balloonContentBody: buildBalloonContent(place),
+                  balloonContentBody: buildPickerBalloonContent(place),
                 }}
                 options={{
                   preset: 'islands#violetDotIcon',
