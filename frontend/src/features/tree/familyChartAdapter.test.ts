@@ -1,21 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
 import {
-  buildCardInnerHtml,
-  escapeHtml,
-  extractPersonId,
   findFamilyIslands,
   findWidestRootId,
   formatFullName,
   formatLifespan,
 } from './familyChartAdapter';
-
-// These tests cover the pure, DOM-free parts of the adapter: the shape
-// transform from a family-chart TreeDatum's nested {data:{data:...}} down
-// to display strings, plus id extraction (used by the card click handler).
-// Actually invoking createFamilyChart() would require a real DOM + d3's SVG
-// layout code, which jsdom doesn't fully implement (no getBBox) - so that
-// integration is exercised manually/via Playwright instead, not here.
 
 function makeTreeNodeData(overrides: Partial<TreeNodeData> = {}): TreeNodeData {
   return {
@@ -31,14 +21,6 @@ function makeTreeNodeData(overrides: Partial<TreeNodeData> = {}): TreeNodeData {
     ...overrides,
   };
 }
-
-describe('escapeHtml', () => {
-  it('escapes all five HTML-significant characters', () => {
-    expect(escapeHtml(`<script>alert("x")&'y'</script>`)).toBe(
-      '&lt;script&gt;alert(&quot;x&quot;)&amp;&#039;y&#039;&lt;/script&gt;',
-    );
-  });
-});
 
 describe('formatFullName', () => {
   it('joins last/first/patronymic with spaces, skipping empty parts', () => {
@@ -79,54 +61,6 @@ describe('formatLifespan', () => {
   });
 });
 
-describe('extractPersonId', () => {
-  it('reads the id from the nested Datum (TreeDatum.data.id)', () => {
-    const treeDatum = { data: { id: '42', data: makeTreeNodeData() } };
-    expect(extractPersonId(treeDatum)).toBe('42');
-  });
-});
-
-describe('buildCardInnerHtml', () => {
-  it('renders name and lifespan, HTML-escaped', () => {
-    const treeDatum = {
-      data: {
-        id: '1',
-        data: makeTreeNodeData({ last_name: '<b>Петров</b>' }),
-      },
-    };
-    const html = buildCardInnerHtml(treeDatum);
-    expect(html).toContain('&lt;b&gt;Петров&lt;/b&gt; Иван Сергеевич');
-    expect(html).not.toContain('<b>Петров</b>');
-  });
-
-  it('renders a placeholder avatar div when avatar is null', () => {
-    const treeDatum = { data: { id: '1', data: makeTreeNodeData({ avatar: null }) } };
-    const html = buildCardInnerHtml(treeDatum);
-    expect(html).toContain('f3-card-avatar-placeholder');
-    expect(html).not.toContain('<img');
-  });
-
-  it('renders an <img> when avatar is set', () => {
-    const treeDatum = {
-      data: { id: '1', data: makeTreeNodeData({ avatar: '/media/avatars/1.jpg' }) },
-    };
-    const html = buildCardInnerHtml(treeDatum);
-    expect(html).toContain('<img class="f3-card-avatar" src="/media/avatars/1.jpg"');
-  });
-
-  it('marks living people with the alive status class', () => {
-    const treeDatum = { data: { id: '1', data: makeTreeNodeData({ status: 'alive' }) } };
-    expect(buildCardInnerHtml(treeDatum)).toContain('f3-card-status-alive');
-    expect(buildCardInnerHtml(treeDatum)).not.toContain('f3-card-status-deceased');
-  });
-
-  it('marks deceased people with the deceased status class', () => {
-    const treeDatum = { data: { id: '1', data: makeTreeNodeData({ status: 'deceased' }) } };
-    expect(buildCardInnerHtml(treeDatum)).toContain('f3-card-status-deceased');
-    expect(buildCardInnerHtml(treeDatum)).not.toContain('f3-card-status-alive');
-  });
-});
-
 function makeNode(
   id: string,
   data: Partial<TreeNodeData>,
@@ -140,7 +74,7 @@ function makeNode(
 }
 
 describe('findFamilyIslands / findWidestRootId', () => {
-  it('lists parentless people, widest bloodline first, and ignores married-in roots for the default', () => {
+  it('lists parentless people, widest bloodline first', () => {
     const tree = [
       makeNode(
         'inlaw',

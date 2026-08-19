@@ -1,60 +1,69 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TreeNode } from '@/shared/types';
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
+  type Node,
+  type Edge,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { useTree } from './hooks';
-import { createFamilyChart, type FamilyChartHandle } from './familyChartAdapter';
+import { layoutTree, type PersonNodeData } from './elkLayoutAdapter';
+import { PersonNode } from './PersonNode';
+
+const nodeTypes = { person: PersonNode };
 
 interface TreeViewProps {
-  /** Person the chart is centred on. family-chart draws one bloodline at a
-   *  time around this id, so changing it is how the whole graph stays
-   *  reachable (see PeoplePanel). */
-  centeredId?: string;
+  focusPersonId?: string;
 }
 
-export function TreeView({ centeredId }: TreeViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartHandleRef = useRef<FamilyChartHandle | null>(null);
-  // What the chart currently reflects, so a re-centre doesn't redraw the data
-  // and a data refetch doesn't reset the centre.
-  const appliedDataRef = useRef<TreeNode[] | null>(null);
-  const appliedCenterRef = useRef<string | undefined>(undefined);
+function TreeViewInner({ focusPersonId }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<PersonNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [layoutReady, setLayoutReady] = useState(false);
+  const { fitView } = useReactFlow();
+
+  const stableData = useMemo(() => data, [data]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !data || data.length === 0) return;
+    if (!stableData || stableData.length === 0) return;
+    let cancelled = false;
+    layoutTree(stableData).then((result) => {
+      if (cancelled) return;
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      setLayoutReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [stableData, setNodes, setEdges]);
 
-    if (!chartHandleRef.current) {
-      chartHandleRef.current = createFamilyChart({
-        container,
-        data,
-        mainId: centeredId,
-        onCardClick: (personId) => navigate(`/person/${personId}`),
+  useEffect(() => {
+    if (!layoutReady || nodes.length === 0) return;
+    if (focusPersonId && nodes.some((n) => n.id === focusPersonId)) {
+      requestAnimationFrame(() => {
+        fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.3 });
       });
-      appliedDataRef.current = data;
-      appliedCenterRef.current = centeredId;
-      return;
+    } else {
+      requestAnimationFrame(() => {
+        fitView({ duration: 300, padding: 0.1 });
+      });
     }
+  }, [layoutReady, focusPersonId, fitView, nodes]);
 
-    if (appliedDataRef.current !== data) {
-      chartHandleRef.current.updateData(data);
-      appliedDataRef.current = data;
-    }
-    if (centeredId && centeredId !== appliedCenterRef.current) {
-      chartHandleRef.current.focusOnPerson(centeredId);
-      appliedCenterRef.current = centeredId;
-    }
-  }, [data, navigate, centeredId]);
-
-  useEffect(() => {
-    return () => {
-      chartHandleRef.current?.destroy();
-      chartHandleRef.current = null;
-      appliedDataRef.current = null;
-      appliedCenterRef.current = undefined;
-    };
-  }, []);
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      navigate(`/person/${node.id}`);
+    },
+    [navigate],
+  );
 
   if (isLoading) return <p className="text-text-muted p-6">Загрузка дерева...</p>;
   if (isError) {
@@ -76,5 +85,32 @@ export function TreeView({ centeredId }: TreeViewProps) {
     );
   }
 
-  return <div className="tree-view-container" ref={containerRef} />;
+  return (
+    <div className="tree-view-container">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        nodeTypes={nodeTypes}
+        fitView
+        nodesDraggable={false}
+        nodesConnectable={false}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Controls showInteractive={false} />
+        <MiniMap />
+        <Background />
+      </ReactFlow>
+    </div>
+  );
+}
+
+export function TreeView(props: TreeViewProps) {
+  return (
+    <ReactFlowProvider>
+      <TreeViewInner {...props} />
+    </ReactFlowProvider>
+  );
 }

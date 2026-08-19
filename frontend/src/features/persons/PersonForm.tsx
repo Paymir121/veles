@@ -117,16 +117,18 @@ export function PersonForm({
 
     let submittedValues = values;
     if (hasPlaceDraft) {
-      if (!placeDraft.name.trim()) {
-        setValidationError('Укажите название нового места захоронения.');
-        setStep('burial');
-        return;
-      }
       setIsSavingPlace(true);
       try {
         const coordinates = await resolveDraftCoordinates(placeDraft, ymapsRef.current);
+        const placeName =
+          placeDraft.name.trim() ||
+          placeDraft.address.trim() ||
+          placeDraft.city.trim() ||
+          (coordinates.latitude !== '' && coordinates.longitude !== ''
+            ? `${coordinates.latitude}, ${coordinates.longitude}`
+            : 'Без названия');
         const created = await createPlaceMutation.mutateAsync({
-          name: placeDraft.name,
+          name: placeName,
           city: placeDraft.city,
           address: placeDraft.address,
           description: '',
@@ -467,12 +469,14 @@ function StepParents({ values, setField, excludePersonId }: StepProps & { exclud
           label="Отец"
           value={values.father}
           excludeId={excludePersonId}
+          genderFilter="M"
           onChange={(id) => setField('father', id)}
         />
         <PersonPickerField
           label="Мать"
           value={values.mother}
           excludeId={excludePersonId}
+          genderFilter="F"
           onChange={(id) => setField('mother', id)}
         />
       </div>
@@ -577,59 +581,133 @@ interface PersonPickerFieldProps {
   label: string;
   value: number | '';
   excludeId?: number;
+  genderFilter?: 'M' | 'F';
   onChange: (id: number | '') => void;
 }
 
-function PersonPickerField({ label, value, excludeId, onChange }: PersonPickerFieldProps) {
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebouncedValue(query, 300);
-  const { data: selected } = usePerson(typeof value === 'number' ? value : undefined);
-  const { data: results = [] } = usePersons(
-    debouncedQuery.trim() ? { search: debouncedQuery.trim() } : undefined,
-  );
-  const options = results.filter((person) => person.id !== excludeId);
+function PersonPickerField({ label, value, excludeId, genderFilter, onChange }: PersonPickerFieldProps) {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const hasValue = typeof value === 'number';
+  const { data: selected, isLoading } = usePerson(hasValue ? value : undefined);
 
   return (
-    <label className="field-label">
+    <div className="field-label">
       {label}
-      {selected && (
+      {hasValue ? (
         <div className="flex items-center gap-2 py-1">
-          <span className="text-text text-sm">
-            {selected.last_name} {selected.first_name} {selected.patronymic}
-          </span>
-          <button type="button" className="btn-ghost text-xs text-error" onClick={() => onChange('')}>
-            Очистить
-          </button>
+          {isLoading ? (
+            <span className="text-text-muted text-sm">Загрузка...</span>
+          ) : selected ? (
+            <>
+              <span className="text-text text-sm">
+                {selected.last_name} {selected.first_name} {selected.patronymic}
+              </span>
+              <button type="button" className="btn-ghost text-xs text-error" onClick={() => onChange('')}>
+                Очистить
+              </button>
+            </>
+          ) : null}
         </div>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-secondary text-sm mt-1"
+          onClick={() => setIsSearchOpen(true)}
+        >
+          + Добавить
+        </button>
       )}
-      {!selected && (
-        <>
+      {isSearchOpen && (
+        <PersonSearchDialog
+          title={`Выбрать: ${label}`}
+          genderFilter={genderFilter}
+          excludeId={excludeId}
+          onSelect={(id) => {
+            onChange(id);
+            setIsSearchOpen(false);
+          }}
+          onClose={() => setIsSearchOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface PersonSearchDialogProps {
+  title: string;
+  genderFilter?: 'M' | 'F';
+  excludeId?: number;
+  onSelect: (id: number) => void;
+  onClose: () => void;
+}
+
+function PersonSearchDialog({ title, genderFilter, excludeId, onSelect, onClose }: PersonSearchDialogProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const { data: results = [], isLoading } = usePersons(
+    debouncedQuery.trim()
+      ? { search: debouncedQuery.trim(), ...(genderFilter ? { gender: genderFilter } : {}) }
+      : undefined,
+  );
+  const options = results.filter((p) => p.id !== excludeId);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    function handleCancel(e: Event) { e.preventDefault(); onClose(); }
+    dialog?.addEventListener('cancel', handleCancel);
+    return () => {
+      dialog?.removeEventListener('cancel', handleCancel);
+      if (dialog?.open) dialog.close();
+    };
+  }, [onClose]);
+
+  return (
+    <dialog ref={dialogRef} className="person-search-dialog">
+      <div className="flex flex-col bg-bg rounded-xl shadow-xl max-w-md w-full mx-auto max-h-[80vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="font-semibold">{title}</h3>
+          <button type="button" className="btn-ghost" onClick={onClose}>✕</button>
+        </div>
+        <div className="px-4 py-3">
           <input
-            className="input"
+            className="input w-full"
             placeholder="Начните вводить имя..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            autoFocus
           />
-          {debouncedQuery.trim() && options.length > 0 && (
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {!debouncedQuery.trim() && (
+            <p className="text-sm text-text-muted">Введите имя или фамилию для поиска</p>
+          )}
+          {debouncedQuery.trim() && isLoading && (
+            <p className="text-sm text-text-muted">Поиск...</p>
+          )}
+          {debouncedQuery.trim() && !isLoading && options.length === 0 && (
+            <p className="text-sm text-text-muted">Никого не найдено</p>
+          )}
+          {options.length > 0 && (
             <ul className="picker-results">
               {options.map((person) => (
                 <li key={person.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(person.id);
-                      setQuery('');
-                    }}
-                  >
+                  <button type="button" onClick={() => onSelect(person.id)}>
                     {person.last_name} {person.first_name} {person.patronymic}
+                    {person.birth_date && (
+                      <span className="text-text-muted text-xs ml-2">
+                        {person.birth_date}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
             </ul>
           )}
-        </>
-      )}
-    </label>
+        </div>
+      </div>
+    </dialog>
   );
 }
 
@@ -679,14 +757,15 @@ function BurialPlaceField({
     address?: string;
     city?: string;
   }) {
+    const address = location.address ?? draft.address;
+    const city = location.city ?? draft.city;
     onDraftChange({
       ...draft,
       latitude: String(location.latitude),
       longitude: String(location.longitude),
-      // A point on the map is authoritative: overwrite whatever the reverse
-      // geocode found over anything typed by hand.
-      address: location.address ?? draft.address,
-      city: location.city ?? draft.city,
+      address,
+      city,
+      name: draft.name || address || city || '',
     });
   }
 
@@ -942,22 +1021,21 @@ function MapPickerContent({
   const resolvePoint = useCallback(async (coords: number[]) => {
     const lat = Number(coords[0].toFixed(6));
     const lng = Number(coords[1].toFixed(6));
-    onLocationPicked({ latitude: lat, longitude: lng });
-    if (!ymapsInstance) return;
-    try {
-      const result = await ymapsInstance.geocode(coords);
-      const found = result.geoObjects.get(0) as unknown as GeocodeResultLike | null;
-      if (found) {
-        onLocationPicked({
-          latitude: lat,
-          longitude: lng,
-          address: found.getAddressLine(),
-          city: found.getLocalities()[0] ?? found.getAdministrativeAreas()[0],
-        });
+    let address: string | undefined;
+    let city: string | undefined;
+    if (ymapsInstance) {
+      try {
+        const result = await ymapsInstance.geocode(coords);
+        const found = result.geoObjects.get(0) as unknown as GeocodeResultLike | null;
+        if (found) {
+          address = found.getAddressLine();
+          city = found.getLocalities()[0] ?? found.getAdministrativeAreas()[0];
+        }
+      } catch {
+        // Fall through — coords alone are still useful
       }
-    } catch {
-      // Coords from click are already set
     }
+    onLocationPicked({ latitude: lat, longitude: lng, address, city });
   }, [ymapsInstance, onLocationPicked]);
 
   async function handleSearchAddress() {

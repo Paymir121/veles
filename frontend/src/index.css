@@ -35,8 +35,7 @@
 
 /* ── Preflight compat for third-party map/chart widgets ─────────────────── */
 /* Tailwind Preflight sets img{max-width:100%} and *{border-width:0} which
-   breaks Yandex Maps tiles/controls and family-chart's SVG cards. Restore
-   defaults inside those containers. */
+   breaks Yandex Maps tiles/controls. Restore defaults inside those containers. */
 @layer base {
   .map-view-container img,
   .map-view-container [class*="ymaps"] img,
@@ -45,7 +44,6 @@
     max-width: none;
   }
 
-  .tree-view-container.f3 *,
   .map-view-container *,
   .map-picker-dialog * {
     border-style: initial;
@@ -208,80 +206,33 @@ body {
   overflow: hidden;
 }
 
-/* family-chart requires "f3 f3-cont" on the container for its CSS to
-   activate. These overrides beat the library's own height:900px/max-height:70vh
-   at specificity (0,3,0). */
-.tree-view-container.f3.f3-cont {
-  --male-color: var(--color-accent);
-  --female-color: var(--color-accent-secondary);
-  --genderless-color: var(--color-border);
-  --background-color: var(--color-bg);
-  --text-color: var(--color-text);
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  min-height: 0;
-}
+/* ── Person node (React Flow custom node) ──────────────────────────────── */
 
-.tree-view-container.f3 svg.main_svg {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* family-chart draws <path class="link"> with hardcoded stroke="#fff" via D3.
-   Any CSS rule beats a presentation attribute. */
-.tree-view-container.f3 .links_view path.link {
-  stroke: var(--color-text-muted);
-}
-
-/* ── f3 card (HTML built by familyChartAdapter.ts, not JSX) ────────────── */
-
-.f3-card-inner {
+.person-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px;
-  text-align: center;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  border-radius: 6px;
-  border: 3px solid;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px;
 }
 
-.f3-card-inner.f3-card-status-alive {
-  border-color: var(--color-accent-secondary);
-}
-
-.f3-card-inner.f3-card-status-deceased {
-  border-color: #0f172a;
-}
-
-.f3-card-avatar {
-  width: 40px;
-  height: 40px;
+.person-node-circle {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.f3-card-avatar-placeholder {
-  background: var(--color-bg-muted);
-}
-
-.f3-card-name {
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.f3-card-lifespan {
+.person-node-label {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
 }
 
 /* ── Map ────────────────────────────────────────────────────────────────── */
@@ -325,6 +276,21 @@ body {
     border-radius: 0;
     margin: 0;
   }
+}
+
+/* ── Person search dialog (parent picker) ───────────────────────────────── */
+
+.person-search-dialog {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0;
+  width: min(95vw, 480px);
+  max-height: 80vh;
+  background: transparent;
+}
+
+.person-search-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 /* ── Picker results dropdown (shared by person/burial pickers) ──────────── */

@@ -15,5 +15,7 @@ urlpatterns = [
     path("auth/", include("djoser.urls.jwt")),
     path("tree/", views.TreeView.as_view(), name="tree"),
     path("search/", views.SearchView.as_view(), name="search"),
+    path("export/", views.ExportView.as_view(), name="export"),
+    path("import/", views.ImportView.as_view(), name="import"),
     path("", include(router.urls)),
 ]

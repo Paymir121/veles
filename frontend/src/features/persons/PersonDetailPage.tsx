@@ -1,5 +1,11 @@
+import { Map as YandexMapComponent, Placemark, YMaps } from '@pbe/react-yandex-maps';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/useAuthStore';
+import {
+  FOCUSED_MAP_ZOOM,
+  hasYandexMapsApiKey,
+  yandexMapsQuery,
+} from '@/shared/maps/yandexMapsSetup';
 import { useBurialPlaceOption, useDeletePerson, usePerson } from './hooks';
 
 const GENDER_LABELS: Record<string, string> = {
@@ -132,6 +138,40 @@ export function PersonDetailPage() {
           </dd>
         </dl>
       </div>
+
+      {/* Burial mini-map */}
+      {person.status === 'deceased' &&
+        burialPlace &&
+        burialPlace.latitude != null &&
+        burialPlace.longitude != null &&
+        hasYandexMapsApiKey() && (
+          <div className="card mb-4">
+            <h2 className="text-lg font-semibold mb-3">Место захоронения на карте</h2>
+            <div className="rounded-lg overflow-hidden" style={{ height: 250 }}>
+              <YMaps query={yandexMapsQuery}>
+                <YandexMapComponent
+                  defaultState={{
+                    center: [burialPlace.latitude, burialPlace.longitude],
+                    zoom: FOCUSED_MAP_ZOOM,
+                  }}
+                  width="100%"
+                  height="100%"
+                  modules={['control.ZoomControl']}
+                >
+                  <Placemark
+                    geometry={[burialPlace.latitude, burialPlace.longitude]}
+                    modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
+                    properties={{
+                      balloonContentHeader: burialPlace.name,
+                      balloonContentBody: burialPlace.city || '',
+                      hintContent: burialPlace.name,
+                    }}
+                  />
+                </YandexMapComponent>
+              </YMaps>
+            </div>
+          </div>
+        )}
 
       {/* Grave photo */}
       {person.status === 'deceased' && person.grave_photo && (
