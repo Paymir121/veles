@@ -12,6 +12,7 @@ export function TreePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [showPhotos, setShowPhotos] = useState(false);
   const linkedPersonId = useAuthStore((state) => state.user?.linked_person_id);
 
   const groups = useMemo(() => (data ? groupTreePeople(data) : []), [data]);
@@ -47,7 +48,15 @@ export function TreePage() {
             В центре: <span className="text-text font-medium">{focusedName}</span>
           </p>
         )}
-        <p className="hidden lg:block text-xs text-text-muted ml-auto shrink-0">
+        <button
+          type="button"
+          className={`btn text-sm ml-auto shrink-0 ${showPhotos ? 'btn-primary' : 'btn-secondary'}`}
+          aria-pressed={showPhotos}
+          onClick={() => setShowPhotos((on) => !on)}
+        >
+          {showPhotos ? 'Скрыть фото' : 'Показать фото'}
+        </button>
+        <p className="hidden lg:block text-xs text-text-muted shrink-0">
           Клик по карточке — профиль человека
         </p>
       </div>
@@ -59,7 +68,7 @@ export function TreePage() {
           onSelect={handleSelect}
           className={`${isPanelOpen ? 'flex' : 'hidden'} max-h-[45vh] md:max-h-none ${isPanelOpen ? 'mobile-people-panel-open' : ''}`}
         />
-        <TreeView focusPersonId={focusPersonId} />
+        <TreeView focusPersonId={focusPersonId} showPhotos={showPhotos} />
       </div>
     </div>
   );

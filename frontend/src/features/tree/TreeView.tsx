@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
@@ -21,27 +21,68 @@ const nodeTypes = { person: PersonNode, family: FamilyNode };
 
 interface TreeViewProps {
   focusPersonId?: string;
+  showPhotos?: boolean;
 }
 
-function TreeViewInner({ focusPersonId }: TreeViewProps) {
+function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<TreeLayoutNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<TreeEdgeData>>([]);
   const [layoutReady, setLayoutReady] = useState(false);
+  const [layoutError, setLayoutError] = useState(false);
   const { fitView } = useReactFlow();
+  const showPhotosRef = useRef(showPhotos);
 
   useEffect(() => {
-    if (!data || data.length === 0) return;
+    showPhotosRef.current = showPhotos;
+  }, [showPhotos]);
+
+  useEffect(() => {
+    if (!data || data.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      setLayoutReady(false);
+      setLayoutError(false);
+      return;
+    }
+
     let cancelled = false;
-    layoutTree(data).then((result) => {
-      if (cancelled) return;
-      setNodes(result.nodes);
-      setEdges(result.edges);
-      setLayoutReady(true);
-    });
+    setLayoutReady(false);
+    setLayoutError(false);
+
+    layoutTree(data)
+      .then((result) => {
+        if (cancelled) return;
+        setNodes(result.nodes.map((node) => (
+          node.data.kind === 'person'
+            ? { ...node, data: { ...node.data, showPhotos: showPhotosRef.current } }
+            : node
+        )));
+        setEdges(result.edges);
+        setLayoutReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLayoutError(true);
+      });
+
     return () => { cancelled = true; };
-  }, [data, setNodes, setEdges]);
+  }, [data]);
+
+  useEffect(() => {
+    setNodes((current) => {
+      let changed = false;
+      const next = current.map((node) => {
+        if (node.data.kind === 'person' && node.data.showPhotos !== showPhotos) {
+          changed = true;
+          return { ...node, data: { ...node.data, showPhotos } };
+        }
+        return node;
+      });
+      return changed ? next : current;
+    });
+  }, [showPhotos]);
 
   useEffect(() => {
     if (!layoutReady || nodes.length === 0) return;
@@ -82,6 +123,39 @@ function TreeViewInner({ focusPersonId }: TreeViewProps) {
         <p>В дереве пока нет ни одного человека.</p>
       </div>
     );
+  }
+
+  if (layoutError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-muted">
+        <p>Не удалось построить дерево.</p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            setLayoutError(false);
+            setLayoutReady(false);
+            void layoutTree(data)
+              .then((result) => {
+                setNodes(result.nodes.map((node) => (
+                  node.data.kind === 'person'
+                    ? { ...node, data: { ...node.data, showPhotos } }
+                    : node
+                )));
+                setEdges(result.edges);
+                setLayoutReady(true);
+              })
+              .catch(() => setLayoutError(true));
+          }}
+        >
+          Повторить
+        </button>
+      </div>
+    );
+  }
+
+  if (!layoutReady) {
+    return <p className="text-text-muted p-6">Построение дерева...</p>;
   }
 
   return (

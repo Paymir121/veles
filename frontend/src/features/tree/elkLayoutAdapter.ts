@@ -11,6 +11,8 @@ export interface PersonNodeData extends Record<string, unknown> {
   status: TreeNodeData['status'];
   isRootGeneration: boolean;
   hasChildren: boolean;
+  avatar: string | null;
+  showPhotos: boolean;
 }
 
 export interface FamilyNodeData extends Record<string, unknown> {
@@ -753,6 +755,8 @@ export async function layoutTree(
         status: record.person!.data.status,
         isRootGeneration: sourcePerson ? sourcePerson.rels.parents.length === 0 : false,
         hasChildren: record.person!.rels.children.length > 0,
+        avatar: record.person!.data.avatar,
+        showPhotos: false,
       },
       width: PERSON_NODE_WIDTH,
       height: PERSON_NODE_HEIGHT,

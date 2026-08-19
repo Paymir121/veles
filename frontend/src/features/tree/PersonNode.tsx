@@ -5,6 +5,8 @@ type PersonNodeProps = NodeProps & { data: PersonNodeData };
 type FamilyNodeProps = NodeProps & { data: FamilyNodeData };
 
 export function PersonNode({ data }: PersonNodeProps) {
+  if (!data || data.kind !== 'person') return null;
+
   const circleClass =
     data.status === 'alive'
       ? 'person-node-circle--alive'
@@ -12,13 +14,20 @@ export function PersonNode({ data }: PersonNodeProps) {
         ? 'person-node-circle--root'
         : 'person-node-circle--deceased';
 
+  const showPhoto = Boolean(data.showPhotos && data.avatar);
+
   return (
     <div className="person-node">
       <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
       <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
       <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />
       <div className="person-node-hitbox">
-        <div className={`person-node-circle ${circleClass}`} aria-hidden="true" />
+        <div
+          className={`person-node-circle ${circleClass}${showPhoto ? ' person-node-circle--with-photo' : ''}${data.showPhotos ? ' person-node-circle--photo-mode' : ''}`}
+          aria-hidden="true"
+        >
+          {showPhoto && <img src={data.avatar!} alt="" className="person-node-photo" />}
+        </div>
         <div className="person-node-label">{data.label}</div>
       </div>
       <Handle id="top-left" type="source" position={Position.Top} className="!invisible !left-[30%]" />
