@@ -52,7 +52,10 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin main
-            docker compose build
             docker compose down --remove-orphans || true
+            docker ps -aq --filter "name=veles-" | xargs -r docker rm -f || true
+            docker compose build
             docker compose up -d
+            docker container prune -f
             docker image prune -f
+            docker builder prune -af

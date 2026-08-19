@@ -4,6 +4,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: veles.settings.prod
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
     volumes:
       - backend_db:/app/data
       - media_data:/app/media
@@ -12,7 +13,7 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             gunicorn veles.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+             gunicorn veles.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS}"
     restart: unless-stopped
 
   nginx:
