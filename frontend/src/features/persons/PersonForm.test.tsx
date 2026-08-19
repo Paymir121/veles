@@ -94,14 +94,14 @@ describe('PersonForm - optional photo submission', () => {
     expect(files).toEqual({ photo: null, gravePhoto: null });
   });
 
-  it('renders both photo inputs as plain optional file inputs', async () => {
+  it('renders photo input as a plain optional file input', async () => {
     const user = userEvent.setup();
     render(<PersonForm onSubmit={vi.fn()} />);
 
-    // Navigate to extras step where photos live
     await goToStep(user, 'Фото');
-    const photoInput = screen.getByLabelText('Портрет (необязательно)') as HTMLInputElement;
-    expect(photoInput.type).toBe('file');
+    const photoLabel = screen.getByText('Портрет', { exact: false });
+    const photoInput = photoLabel.closest('div')!.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(photoInput).toBeTruthy();
     expect(photoInput.required).toBe(false);
   });
 });
@@ -156,7 +156,8 @@ describe('PersonForm - a new burial place is saved together with the person', ()
     expect(handleSubmit.mock.calls[0][0].burial_place).toBe(77);
   });
 
-  it('refuses to submit a place with no name instead of dropping it', async () => {
+  it('auto-generates place name from coordinates when name is empty', async () => {
+    createPlaceMock.mockResolvedValue({ id: 88 });
     const handleSubmit = vi.fn();
     const user = userEvent.setup();
     render(<PersonForm onSubmit={handleSubmit} />);
@@ -166,9 +167,9 @@ describe('PersonForm - a new burial place is saved together with the person', ()
     await user.type(screen.getByLabelText('Долгота'), '37.5');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    expect(await screen.findByText(/Укажите название нового места/i)).toBeInTheDocument();
-    expect(createPlaceMock).not.toHaveBeenCalled();
-    expect(handleSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(createPlaceMock).toHaveBeenCalled());
+    expect(createPlaceMock.mock.calls[0][0].name).toBe('55.5, 37.5');
+    expect(handleSubmit).toHaveBeenCalled();
   });
 
   it('leaves the person unsaved when the place cannot be created', async () => {
