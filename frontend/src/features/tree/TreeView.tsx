@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
@@ -6,9 +6,11 @@ import {
   Background,
   useReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   type Node,
   type Edge,
   type NodeMouseHandler,
+  type OnNodesChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { TreeNode } from '@/shared/types';
@@ -54,6 +56,7 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   const { data, isLoading, isError, refetch } = useTree();
   const [layout, setLayout] = useState<TreeLayoutState>(emptyLayout);
   const [edgeStrokeWidth] = useState(getEdgeStrokeWidth);
+  const draggingNodeRef = useRef(false);
   const { fitView } = useReactFlow();
 
   useEffect(() => {
@@ -136,8 +139,8 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   }, [data]);
 
   useEffect(() => {
-    if (!layoutReady || displayNodes.length === 0) return;
-    if (focusPersonId && displayNodes.some((n) => n.id === focusPersonId)) {
+    if (!layoutReady || layout.nodes.length === 0) return;
+    if (focusPersonId && layout.nodes.some((n) => n.id === focusPersonId)) {
       requestAnimationFrame(() => {
         fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.2 });
       });
@@ -146,10 +149,18 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
         fitView({ duration: 300, padding: 0.02 });
       });
     }
-  }, [layoutReady, focusPersonId, fitView, displayNodes]);
+  }, [layoutReady, focusPersonId, fitView, layout.source, layout.nodes.length]);
+
+  const onNodesChange = useCallback<OnNodesChange<Node<TreeLayoutNodeData>>>((changes) => {
+    setLayout((current) => ({
+      ...current,
+      nodes: applyNodeChanges(changes, current.nodes),
+    }));
+  }, []);
 
   const onNodeClick = useCallback<NodeMouseHandler<Node<TreeLayoutNodeData>>>(
     (_event, node) => {
+      if (draggingNodeRef.current) return;
       if (node.data.kind !== 'person') return;
       navigate(`/person/${node.id}`);
     },
@@ -200,13 +211,23 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
-        onNodesChange={() => {}}
+        onNodesChange={onNodesChange}
         onEdgesChange={() => {}}
         onNodeClick={onNodeClick}
+        onNodeDragStart={() => {
+          draggingNodeRef.current = true;
+        }}
+        onNodeDragStop={() => {
+          requestAnimationFrame(() => {
+            draggingNodeRef.current = false;
+          });
+        }}
         nodeTypes={nodeTypes}
         fitView
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
+        nodeDragThreshold={5}
+        deleteKeyCode={null}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

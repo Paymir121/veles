@@ -19,7 +19,7 @@ export function PersonNode({ data }: PersonNodeProps) {
   const photoSrc = showPhoto ? resolveMediaUrl(data.avatar) : null;
 
   return (
-    <div className="person-node">
+    <div className="person-node" role="button" aria-label={data.label}>
       <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
       <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
       <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />

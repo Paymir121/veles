@@ -269,8 +269,12 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  cursor: grab;
   padding: 6px;
+}
+
+.react-flow__node.dragging .person-node {
+  cursor: grabbing;
 }
 
 .person-node-hitbox {

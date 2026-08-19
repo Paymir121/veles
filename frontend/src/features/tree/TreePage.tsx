@@ -59,7 +59,7 @@ export function TreePage() {
           </p>
         )}
         <p className="hidden lg:block text-xs text-text-muted shrink-0 tree-toolbar-hint">
-          Клик по карточке — профиль человека
+          Клик — профиль, перетащите карточку чтобы сдвинуть
         </p>
       </div>
 
