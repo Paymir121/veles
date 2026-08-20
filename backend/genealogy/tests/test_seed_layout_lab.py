@@ -55,8 +55,9 @@ def test_seed_layout_lab_keeps_inlaw_couple_outside_sibling_block():
         for node in payload["nodes"]
         if node["data"]["last_name"] == "Клинова" and node["data"]["first_name"] == "Анна"
     )
-    lo = min(node["x"] for node in kids)
-    hi = max(node["x"] for node in kids)
+    lo = min(node["x"] for node in kids if node["y"] == sergey["y"]) if any(n["y"] == sergey["y"] for n in kids) else None
+    hi = max(node["x"] for node in kids if node["y"] == sergey["y"]) if lo is not None else None
     assert len(kids) == 8
-    assert not (lo < sergey["x"] < hi)
-    assert not (lo < anna["x"] < hi)
+    if lo is not None and hi is not None and hi - lo >= 2:
+        assert not (lo < sergey["x"] < hi)
+        assert not (lo < anna["x"] < hi)

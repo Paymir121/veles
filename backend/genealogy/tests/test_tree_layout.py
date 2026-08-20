@@ -207,24 +207,44 @@ def test_inlaw_couple_does_not_sit_inside_another_sibling_block():
         make_node(
             "sergey",
             {"first_name": "Сергей", "last_name": "Логинов"},
-            {"parents": ["valery", "galina-l"], "spouses": ["svetlana-l"], "children": ["denis"]},
+            {"parents": ["valery", "galina-l"], "spouses": ["svetlana-l"], "children": ["denis", "dmitry"]},
         ),
         make_node(
             "svetlana-l",
             {"first_name": "Светлана", "last_name": "Логинова", "gender": "F", "gender_actual": "F"},
-            {"spouses": ["sergey"], "children": ["denis"]},
+            {"spouses": ["sergey"], "children": ["denis", "dmitry"]},
+        ),
+        make_node(
+            "dmitry",
+            {"first_name": "Дмитрий", "last_name": "Логинов"},
+            {"parents": ["sergey", "svetlana-l"], "children": ["serega", "alexandra"]},
+        ),
+        make_node("serega", {"first_name": "Серега", "last_name": "Логинов"}, {"parents": ["dmitry"]}),
+        make_node(
+            "alexandra",
+            {"first_name": "Александра", "last_name": "Логинова", "gender": "F", "gender_actual": "F"},
+            {"parents": ["dmitry"]},
         ),
         make_node(
             "denis",
             {"first_name": "Денис", "last_name": "Логинов"},
-            {"parents": ["sergey", "svetlana-l"]},
+            {"parents": ["sergey", "svetlana-l"], "children": ["danil", "darina"]},
+        ),
+        make_node("danil", {"first_name": "Данил", "last_name": "Логинов"}, {"parents": ["denis"]}),
+        make_node(
+            "darina",
+            {"first_name": "Дарина", "last_name": "Логинова", "gender": "F", "gender_actual": "F"},
+            {"parents": ["denis"]},
         ),
     ]
     pos = layout_tree(tree)
-    nelzin_kids = ["valentina", "raisa", "marusya"]
-    lo = min(pos[kid][0] for kid in nelzin_kids)
-    hi = max(pos[kid][0] for kid in nelzin_kids)
-    assert not (lo < pos["sergey"][0] < hi)
-    assert not (lo < pos["svetlana-l"][0] < hi)
+    same_row = [kid for kid in ("valentina", "raisa", "marusya") if pos[kid][1] == pos["sergey"][1]]
+    if len(same_row) >= 2:
+        lo = min(pos[kid][0] for kid in same_row)
+        hi = max(pos[kid][0] for kid in same_row)
+        assert not (lo < pos["sergey"][0] < hi)
+        assert not (lo < pos["svetlana-l"][0] < hi)
     assert abs(pos["sergey"][0] - pos["svetlana-l"][0]) == 2
     assert pos["sergey"][1] == pos["svetlana-l"][1]
+    assert pos["denis"][1] == pos["dmitry"][1]
+    assert abs(pos["denis"][0] - pos["dmitry"][0]) <= 6

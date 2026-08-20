@@ -4,12 +4,13 @@
 Usage:
     py init.py           (or: python init.py, if python is on your PATH)
 
-DESTRUCTIVE ON PURPOSE (this is a test environment): every run wipes all
-existing Person/BurialPlace/Union rows and reloads them fresh from
-backend/genealogy/fixtures/demo_data.json (plain, human-readable JSON). The
-seed_demo_data management command refuses to run unless DEBUG=True, as a
-guard rail against ever wiping a real deployment by mistake. Does not touch
-User accounts -- the seeded admin/admin login survives a reset.
+DESTRUCTIVE ON PURPOSE (this is a test environment): every run applies
+pending migrations, then wipes all existing Person/BurialPlace/Union rows
+and reloads them fresh from backend/genealogy/fixtures/demo_data.json
+(plain, human-readable JSON). The seed_demo_data management command
+refuses to run unless DEBUG=True, as a guard rail against ever wiping a
+real deployment by mistake. Does not touch User accounts -- the seeded
+admin/admin login survives a reset (and is created by migrate if missing).
 """
 from __future__ import annotations
 
@@ -32,6 +33,14 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    # Fresh or wiped db.sqlite3 has no tables yet; seed_demo_data needs them.
+    migrate = subprocess.run(
+        [str(venv_python), "manage.py", "migrate", "--noinput"],
+        cwd=BACKEND_DIR,
+    )
+    if migrate.returncode != 0:
+        sys.exit(migrate.returncode)
 
     result = subprocess.run([str(venv_python), "manage.py", "seed_demo_data"], cwd=BACKEND_DIR)
     sys.exit(result.returncode)

@@ -244,7 +244,7 @@ def pack_columns(
     ids = set(by_id)
     col: dict[str, int] = {}
     families_by_parent: dict[str, list[dict]] = defaultdict(list)
-    reserved: list[tuple[int, int, set[str]]] = []
+    reserved: list[tuple[int, int, int, set[str]]] = []
     for family in families:
         for parent_id in family["parent_ids"]:
             families_by_parent[parent_id].append(family)
@@ -259,30 +259,67 @@ def pack_columns(
     def column_allowed(person_id: str, candidate: int) -> bool:
         if not far_enough(candidate, occupied_at(gen.get(person_id, 0))):
             return False
-        for lo, hi, members in reserved:
-            if person_id in members:
+        person_gen = gen.get(person_id, 0)
+        for span_gen, lo, hi, members in reserved:
+            if person_id in members or span_gen != person_gen:
                 continue
             if lo <= candidate <= hi:
                 return False
         return True
 
-    def nearest_free(generation: int, preferred: int, person_id: str) -> int:
+    def nearest_free(
+        generation: int,
+        preferred: int,
+        person_id: str,
+        *,
+        prefer_right: bool = False,
+    ) -> int:
         occupied = occupied_at(generation)
-        if far_enough(preferred, occupied) and column_allowed(person_id, preferred):
+
+        def ok(candidate: int) -> bool:
+            return far_enough(candidate, occupied) and column_allowed(person_id, candidate)
+
+        if ok(preferred):
             return preferred
-        for delta in range(1, 800):
-            right = preferred + delta
-            if far_enough(right, occupied) and column_allowed(person_id, right):
-                return right
-            left = preferred - delta
-            if far_enough(left, occupied) and column_allowed(person_id, left):
-                return left
+        deltas = range(1, 800)
+        if prefer_right:
+            for delta in deltas:
+                if ok(preferred + delta):
+                    return preferred + delta
+            for delta in deltas:
+                if ok(preferred - delta):
+                    return preferred - delta
+            return preferred
+        for delta in deltas:
+            if ok(preferred + delta):
+                return preferred + delta
+            if ok(preferred - delta):
+                return preferred - delta
         return preferred
 
-    def place(person_id: str, preferred: int) -> None:
+    def snap_out_of_reserved(person_id: str, cursor: int) -> int:
+        person_gen = gen.get(person_id, 0)
+        for _ in range(8):
+            moved = False
+            for span_gen, lo, hi, members in reserved:
+                if person_id in members or span_gen != person_gen:
+                    continue
+                if lo <= cursor <= hi:
+                    cursor = hi + COL_STEP
+                    moved = True
+            if not moved:
+                break
+        return cursor
+
+    def place(person_id: str, preferred: int, *, prefer_right: bool = False) -> None:
         if person_id in col:
             return
-        col[person_id] = nearest_free(gen.get(person_id, 0), preferred, person_id)
+        col[person_id] = nearest_free(
+            gen.get(person_id, 0),
+            preferred,
+            person_id,
+            prefer_right=prefer_right,
+        )
 
     def place_parents(family: dict, child_cols: list[int]) -> None:
         if not child_cols:
@@ -306,12 +343,21 @@ def pack_columns(
 
     def pack_family(family: dict, family_origin: int) -> tuple[int, int]:
         kids = [child_id for child_id in sort_children(family, by_id) if child_id in ids]
+        placed_kids = [child_id for child_id in kids if child_id in col]
         cursor = family_origin
+        if placed_kids:
+            cursor = max(col[child_id] for child_id in placed_kids) + COL_STEP
         child_cols: list[int] = []
         left = family_origin
         right = family_origin
-        for child_id in kids:
-            packed_col, packed_left, packed_right = pack_person(child_id, cursor)
+        for index, child_id in enumerate(kids):
+            if child_id not in col:
+                cursor = snap_out_of_reserved(child_id, cursor)
+            packed_col, packed_left, packed_right = pack_person(
+                child_id,
+                cursor,
+                prefer_right=index > 0 or bool(placed_kids),
+            )
             child_cols.append(packed_col)
             left = min(left, packed_left)
             right = max(right, packed_right)
@@ -319,7 +365,11 @@ def pack_columns(
         place_parents(family, child_cols)
         if child_cols:
             members = set(family["parent_ids"]) | set(family["child_ids"])
-            reserved.append((min(child_cols), max(child_cols), members))
+            by_gen: dict[int, list[int]] = defaultdict(list)
+            for child_id, child_col in zip(kids, child_cols):
+                by_gen[gen.get(child_id, 0)].append(child_col)
+            for span_gen, cols in by_gen.items():
+                reserved.append((span_gen, min(cols), max(cols), members))
         for parent_id in family["parent_ids"]:
             if parent_id not in col:
                 continue
@@ -327,7 +377,12 @@ def pack_columns(
             right = max(right, col[parent_id])
         return left, right
 
-    def pack_person(person_id: str, person_origin: int) -> tuple[int, int, int]:
+    def pack_person(
+        person_id: str,
+        person_origin: int,
+        *,
+        prefer_right: bool = False,
+    ) -> tuple[int, int, int]:
         if person_id in col:
             current = col[person_id]
             return current, current, current
@@ -338,7 +393,7 @@ def pack_columns(
             and all(child_id in ids for child_id in family["child_ids"])
         ]
         if not own_families:
-            place(person_id, person_origin)
+            place(person_id, person_origin, prefer_right=prefer_right)
             current = col[person_id]
             return current, current, current
 

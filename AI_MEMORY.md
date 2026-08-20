@@ -138,8 +138,10 @@
   father/mother, потом простановка родителей — иначе ребёнка, упомянутого в JSON раньше
   родителя, не на что было бы сослаться. `full_clean()` на каждую запись — та же валидация,
   что и через API (в т.ч. ancestor-cycle проверка реально прогоняется на этих данных).
-  `init.py` — тонкая обёртка, вызывает `backend/.venv/…/python.exe manage.py
-  seed_demo_data` (тот же паттерн резолва интерпретатора, что в `main.py`).
+  `init.py` — тонкая обёртка: сначала `manage.py migrate --noinput`, затем
+  `seed_demo_data` (тот же паттерн резолва интерпретатора, что в `main.py`).
+  Migrate обязателен: свежий/пустой `db.sqlite3` без схемы даёт
+  `OperationalError: no such table: genealogy_person`.
 - **Грабли**: `latitude`/`longitude` в JSON обязаны быть строками (`"55.7761"`), не числами —
   сырой JSON-float теряет точность как binary double и не проходит `DecimalField`-валидацию
   (`full_clean()` кидает "no more than 6 decimal places"). Задокументировано в `_comment`
