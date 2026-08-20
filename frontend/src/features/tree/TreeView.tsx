@@ -44,10 +44,12 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
 
   const graph = useMemo(() => layoutTree(data ?? []), [data]);
   const [draggedNodes, setDraggedNodes] = useState<Node<TreeLayoutNodeData>[] | null>(null);
+  const [layoutSource, setLayoutSource] = useState(graph);
 
-  useEffect(() => {
+  if (graph !== layoutSource) {
+    setLayoutSource(graph);
     setDraggedNodes(null);
-  }, [graph]);
+  }
 
   const nodes = draggedNodes ?? graph.nodes;
 
@@ -75,8 +77,8 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
   );
 
   useEffect(() => {
-    if (nodes.length === 0) return;
-    if (focusPersonId && nodes.some((n) => n.id === focusPersonId)) {
+    if (graph.nodes.length === 0) return;
+    if (focusPersonId && graph.nodes.some((n) => n.id === focusPersonId)) {
       requestAnimationFrame(() => {
         fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.2 });
       });
@@ -85,7 +87,7 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
         fitView({ duration: 300, padding: 0.02 });
       });
     }
-  }, [focusPersonId, fitView, graph, nodes]);
+  }, [focusPersonId, fitView, graph]);
 
   const onNodesChange = useCallback<OnNodesChange<Node<TreeLayoutNodeData>>>((changes) => {
     setDraggedNodes((current) => applyNodeChanges(changes, current ?? graph.nodes));
