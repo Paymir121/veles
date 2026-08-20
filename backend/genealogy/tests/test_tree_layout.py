@@ -248,3 +248,7 @@ def test_inlaw_couple_does_not_sit_inside_another_sibling_block():
     assert pos["sergey"][1] == pos["svetlana-l"][1]
     assert pos["denis"][1] == pos["dmitry"][1]
     assert abs(pos["denis"][0] - pos["dmitry"][0]) <= 6
+    assert pos["valery"][1] == pos["galina-l"][1]
+    assert abs(pos["valery"][0] - pos["sergey"][0]) <= 4
+    assert abs(pos["galina-l"][0] - pos["sergey"][0]) <= 4
+    assert abs(pos["valery"][0] - pos["sergey"][0]) < abs(pos["valery"][0] - pos["svetlana-r"][0])

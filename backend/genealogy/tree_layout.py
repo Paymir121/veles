@@ -344,6 +344,7 @@ def pack_columns(
     def pack_family(family: dict, family_origin: int) -> tuple[int, int]:
         kids = [child_id for child_id in sort_children(family, by_id) if child_id in ids]
         placed_kids = [child_id for child_id in kids if child_id in col]
+        already_ids = set(placed_kids)  # kids claimed by another subtree before this pack
         cursor = family_origin
         if placed_kids:
             cursor = max(col[child_id] for child_id in placed_kids) + COL_STEP
@@ -362,7 +363,15 @@ def pack_columns(
             left = min(left, packed_left)
             right = max(right, packed_right)
             cursor = packed_right + COL_STEP
-        place_parents(family, child_cols)
+        # A child already sitting in another subtree (married-in) must not
+        # drag these parents into that foreign block. Sit under the kids
+        # packed in this family; fall back to everyone if all were claimed.
+        home_cols = [
+            child_col
+            for child_id, child_col in zip(kids, child_cols)
+            if child_id not in already_ids
+        ]
+        place_parents(family, home_cols or child_cols)
         if child_cols:
             members = set(family["parent_ids"]) | set(family["child_ids"])
             by_gen: dict[int, list[int]] = defaultdict(list)

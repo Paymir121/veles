@@ -28,6 +28,10 @@ description: Use when verifying changes, deciding how to test a model/endpoint/U
 - Frontend: component test for the changed component passes; tree/map/search changes also
   pass (or are manually re-verified via Playwright MCP with a screenshot) the smoke test.
 
+# Tree layout
+- Packing looks wrong: run `py dump_tree_layout.py` (optional `--q Фамилия`) from the
+  repo root before guessing. It prints grid cells, families, and hole/split checks.
+
 # Avoid
 - Declaring a tree/map change done without actually rendering it.
 - Adding a Person field that affects the tree without updating the `/api/tree/` transform + test.

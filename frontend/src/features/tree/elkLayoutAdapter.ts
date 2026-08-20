@@ -212,8 +212,9 @@ export function layoutTree(
       .filter((node): node is Node<TreeLayoutNodeData> => Boolean(node));
     if (parents.length === 0 || children.length === 0) continue;
 
+    // The bar is the couple's union. A child who sits far away (married into
+    // another subtree) must not drag it into the gap between families.
     const parentCenterX = parents.reduce((sum, node) => sum + node.position.x + CELL_W / 2, 0) / parents.length;
-    const childCenterX = children.reduce((sum, node) => sum + node.position.x + CELL_W / 2, 0) / children.length;
     const parentTop = Math.min(...parents.map((node) => node.position.y));
     const childBottom = Math.max(...children.map((node) => node.position.y + CELL_H));
 
@@ -221,7 +222,7 @@ export function layoutTree(
       id: family.id,
       type: 'family',
       position: {
-        x: (parentCenterX + childCenterX) / 2 - FAMILY_NODE_WIDTH / 2,
+        x: parentCenterX - FAMILY_NODE_WIDTH / 2,
         y: (childBottom + parentTop) / 2 - FAMILY_NODE_HEIGHT / 2,
       },
       data: {

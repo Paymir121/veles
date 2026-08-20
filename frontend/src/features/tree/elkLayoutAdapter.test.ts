@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
-import { CELL_H, CELL_W, layoutTree } from './elkLayoutAdapter';
+import { CELL_H, CELL_W, FAMILY_NODE_WIDTH, layoutTree } from './elkLayoutAdapter';
 
 function makeNode(
   id: string,
@@ -67,5 +67,32 @@ describe('layoutTree', () => {
     ]);
     expect(edges.some((edge) => edge.source === 'mother' && edge.target === 'family:father-a+mother')).toBe(true);
     expect(edges.some((edge) => edge.source === 'mother' && edge.target === 'family:father-b+mother')).toBe(true);
+  });
+
+  it('keeps the family bar under the couple when a child sits far away', () => {
+    const tree = [
+      makeNode('valery', { first_name: 'Валерий' }, { children: ['sergey', 'svetlana'] }, { x: 27, y: 10 }),
+      makeNode(
+        'galina',
+        { first_name: 'Галина', gender: 'F', gender_actual: 'F' },
+        { children: ['sergey', 'svetlana'] },
+        { x: 29, y: 10 },
+      ),
+      makeNode(
+        'svetlana',
+        { first_name: 'Светлана', gender: 'F', gender_actual: 'F' },
+        { parents: ['valery', 'galina'] },
+        { x: 8, y: 4 },
+      ),
+      makeNode('sergey', { first_name: 'Сергей' }, { parents: ['valery', 'galina'] }, { x: 28, y: 8 }),
+    ];
+    const { nodes } = layoutTree(tree);
+    const bar = nodes.find((node) => node.data.kind === 'family');
+    expect(bar).toBeDefined();
+    const coupleCenter = ((27 + 29) / 2) * CELL_W + CELL_W / 2;
+    const barCenter = bar!.position.x + FAMILY_NODE_WIDTH / 2;
+    expect(Math.abs(barCenter - coupleCenter)).toBeLessThan(1);
+    const childMid = ((8 + 28) / 2) * CELL_W + CELL_W / 2;
+    expect(Math.abs(barCenter - childMid)).toBeGreaterThan(CELL_W);
   });
 });
