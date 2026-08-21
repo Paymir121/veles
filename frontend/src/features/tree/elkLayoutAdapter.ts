@@ -24,8 +24,6 @@ export interface FamilyNodeData extends Record<string, unknown> {
   kind: 'family';
   parentIds: string[];
   childIds: string[];
-  parentHandlePct: Record<string, number>;
-  childHandlePct: Record<string, number>;
 }
 
 export type TreeLayoutNodeData = PersonNodeData | FamilyNodeData;
@@ -39,10 +37,8 @@ export const CELL_W = 124;
 export const CELL_H = 56;
 export const PERSON_NODE_WIDTH = 216;
 export const PERSON_NODE_HEIGHT = 72;
-export const FAMILY_NODE_MIN_WIDTH = 24;
-export const FAMILY_NODE_WIDTH = FAMILY_NODE_MIN_WIDTH;
-export const FAMILY_NODE_HEIGHT = 4;
-const NEARBY_CHILD_SLACK = CELL_W * 2;
+export const FAMILY_NODE_WIDTH = 18;
+export const FAMILY_NODE_HEIGHT = 8;
 
 interface FamilyUnit {
   id: string;
@@ -86,23 +82,23 @@ function getEdgeKindToPerson(person: TreeNode): TreeEdgeKind {
   return 'branch';
 }
 
-export const TREE_EDGE_TYPE = 'organic';
-
-/** Relative thickness: trunk > wood > living shoot. Colour lives in CSS. */
 function edgeStyleForKind(kind: TreeEdgeKind): NonNullable<Edge<TreeEdgeData>['style']> {
-  if (kind === 'leafStem') return { strokeWidth: 1.7 };
-  if (kind === 'root') return { strokeWidth: 4.4 };
-  return { strokeWidth: 2.9 };
+  if (kind === 'leafStem') return { stroke: '#2aa56d', strokeWidth: 2.1 };
+  if (kind === 'root') return { stroke: '#6b4423', strokeWidth: 2.6 };
+  return { stroke: '#8a5a2d', strokeWidth: 2.2 };
 }
 
-function personCenterX(node: Node<TreeLayoutNodeData>): number {
-  return node.position.x + PERSON_NODE_WIDTH / 2;
-}
-
-function handlePct(centerX: number, barLeft: number, barWidth: number): number {
-  if (barWidth <= 0) return 50;
-  const pct = ((centerX - barLeft) / barWidth) * 100;
-  return Math.min(100, Math.max(0, Math.round(pct * 10) / 10));
+function pickHandleId(
+  index: number,
+  total: number,
+  side: 'personSource' | 'familyTarget' | 'childTarget',
+): string {
+  const handles = side === 'personSource'
+    ? ['top-left', 'top-center', 'top-right']
+    : ['bottom-left', 'bottom-center', 'bottom-right'];
+  if (total <= 1) return handles[1];
+  const slot = Math.round((index / Math.max(total - 1, 1)) * (handles.length - 1));
+  return handles[slot];
 }
 
 function buildEdges(
@@ -110,6 +106,18 @@ function buildEdges(
   families: FamilyUnit[],
 ): Edge<TreeEdgeData>[] {
   const byId = new Map(data.map((person) => [person.id, person]));
+  const familiesByParent = new Map<string, FamilyUnit[]>();
+  for (const family of families) {
+    for (const parentId of family.parentIds) {
+      const list = familiesByParent.get(parentId) ?? [];
+      list.push(family);
+      familiesByParent.set(parentId, list);
+    }
+  }
+  for (const list of familiesByParent.values()) {
+    list.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
   const edges: Edge<TreeEdgeData>[] = [];
   const edgeSet = new Set<string>();
 
@@ -117,6 +125,8 @@ function buildEdges(
     for (const parentId of family.parentIds) {
       const parent = byId.get(parentId);
       if (!parent) continue;
+      const parentFamilies = familiesByParent.get(parentId) ?? [family];
+      const familyIndexForParent = parentFamilies.findIndex((item) => item.id === family.id);
       const edgeId = `e-${parentId}-${family.id}`;
       if (edgeSet.has(edgeId)) continue;
       edgeSet.add(edgeId);
@@ -129,16 +139,23 @@ function buildEdges(
         id: edgeId,
         source: parentId,
         target: family.id,
-        sourceHandle: 'out',
-        targetHandle: `in-${parentId}`,
-        type: TREE_EDGE_TYPE,
-        selectable: false,
-        focusable: false,
+        sourceHandle: pickHandleId(
+          familyIndexForParent >= 0 ? familyIndexForParent : 0,
+          parentFamilies.length,
+          'personSource',
+        ),
+        targetHandle: pickHandleId(
+          family.parentIds.findIndex((id) => id === parentId),
+          family.parentIds.length,
+          'familyTarget',
+        ),
+        type: 'straight',
         data: { kind },
         style: edgeStyleForKind(kind),
       });
     }
 
+    const sortedChildIds = [...family.childIds].sort();
     for (const childId of family.childIds) {
       const child = byId.get(childId);
       if (!child) continue;
@@ -150,11 +167,9 @@ function buildEdges(
         id: edgeId,
         source: family.id,
         target: childId,
-        sourceHandle: `out-${childId}`,
-        targetHandle: 'in',
-        type: TREE_EDGE_TYPE,
-        selectable: false,
-        focusable: false,
+        sourceHandle: 'top-center',
+        targetHandle: pickHandleId(sortedChildIds.indexOf(childId), sortedChildIds.length, 'childTarget'),
+        type: 'straight',
         data: { kind },
         style: edgeStyleForKind(kind),
       });
@@ -209,48 +224,27 @@ export function layoutTree(
       .filter((node): node is Node<TreeLayoutNodeData> => Boolean(node));
     if (parents.length === 0 || children.length === 0) continue;
 
-    // The bar sits under the couple. Nearby children can widen it; a child who
-    // married into another subtree must not drag it across the gap.
-    const parentCenters = parents.map(personCenterX);
-    const parentMin = Math.min(...parentCenters);
-    const parentMax = Math.max(...parentCenters);
-    const nearbyChildCenters = children
-      .map(personCenterX)
-      .filter((centerX) => centerX >= parentMin - NEARBY_CHILD_SLACK && centerX <= parentMax + NEARBY_CHILD_SLACK);
-    const barMin = Math.min(parentMin, ...nearbyChildCenters);
-    const barMax = Math.max(parentMax, ...nearbyChildCenters);
-    const barWidth = Math.max(FAMILY_NODE_MIN_WIDTH, barMax - barMin);
-    const barLeft = (barMin + barMax) / 2 - barWidth / 2;
+    // The bar is the couple's union. A child who sits far away (married into
+    // another subtree) must not drag it into the gap between families.
+    const parentCenterX =
+      parents.reduce((sum, node) => sum + node.position.x + PERSON_NODE_WIDTH / 2, 0) / parents.length;
     const parentTop = Math.min(...parents.map((node) => node.position.y));
     const childBottom = Math.max(...children.map((node) => node.position.y + PERSON_NODE_HEIGHT));
-
-    const parentHandlePct: Record<string, number> = {};
-    for (const parent of parents) {
-      parentHandlePct[parent.id] = handlePct(personCenterX(parent), barLeft, barWidth);
-    }
-    const childHandlePct: Record<string, number> = {};
-    for (const child of children) {
-      childHandlePct[child.id] = handlePct(personCenterX(child), barLeft, barWidth);
-    }
 
     nodes.push({
       id: family.id,
       type: 'family',
       position: {
-        x: barLeft,
+        x: parentCenterX - FAMILY_NODE_WIDTH / 2,
         y: (childBottom + parentTop) / 2 - FAMILY_NODE_HEIGHT / 2,
       },
       data: {
         kind: 'family',
         parentIds: family.parentIds,
         childIds: family.childIds,
-        parentHandlePct,
-        childHandlePct,
       },
-      width: barWidth,
+      width: FAMILY_NODE_WIDTH,
       height: FAMILY_NODE_HEIGHT,
-      selectable: false,
-      focusable: false,
     });
   }
 
