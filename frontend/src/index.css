@@ -13,6 +13,9 @@
   --color-accent-contrast: #ffffff;
   --color-accent-secondary: #10b981;
   --color-error: #dc2626;
+  --tree-wood-root: #5a3318;
+  --tree-wood-branch: #8a5a2d;
+  --tree-leaf: #2aa56d;
 
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --radius-default: 8px;
@@ -30,6 +33,9 @@
     --color-accent: #60a5fa;
     --color-accent-contrast: #0b1220;
     --color-accent-secondary: #34d399;
+    --tree-wood-root: #c9a07a;
+    --tree-wood-branch: #d4b08c;
+    --tree-leaf: #34d399;
   }
 }
 
@@ -274,6 +280,7 @@ body {
 /* ── Person node (React Flow custom node) ──────────────────────────────── */
 
 .person-node {
+  position: relative;
   width: 216px;
   height: 72px;
   display: flex;
@@ -296,22 +303,22 @@ body {
   padding: 6px 26px 6px 6px;
   border-radius: 6px;
   background: var(--color-surface);
-  border: 2px solid #8a5a2d;
+  border: 2px solid var(--tree-wood-branch);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
   transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
 }
 
 .person-node-card--alive {
-  border-color: #2aa56d;
+  border-color: var(--tree-leaf);
 }
 
 .person-node-card--deceased {
-  border-color: #8a5a2d;
+  border-color: var(--tree-wood-branch);
 }
 
 .person-node-card--root {
-  border-color: #6b4423;
+  border-color: var(--tree-wood-root);
 }
 
 .person-node-card--male {
@@ -368,19 +375,19 @@ body {
 
   .person-node:hover .person-node-card--alive {
     box-shadow:
-      0 0 0 3px color-mix(in srgb, #2aa56d 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--tree-leaf) 55%, transparent),
       0 8px 18px rgba(0, 0, 0, 0.18);
   }
 
   .person-node:hover .person-node-card--deceased {
     box-shadow:
-      0 0 0 3px color-mix(in srgb, #8a5a2d 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--tree-wood-branch) 55%, transparent),
       0 8px 18px rgba(0, 0, 0, 0.18);
   }
 
   .person-node:hover .person-node-card--root {
     box-shadow:
-      0 0 0 3px color-mix(in srgb, #6b4423 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--tree-wood-root) 55%, transparent),
       0 8px 18px rgba(0, 0, 0, 0.18);
   }
 
@@ -478,20 +485,104 @@ body {
 }
 
 .family-node {
-  width: 18px;
-  height: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+  background: transparent;
 }
 
 .family-node-bar {
-  width: 16px;
-  height: 4px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text-muted) 65%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg) 70%, transparent);
+  background: var(--tree-wood-branch);
+}
+
+.react-flow__node-family {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: none;
+}
+
+.tree-node-handle.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.person-node .tree-node-handle.react-flow__handle {
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%);
+}
+
+.family-node .tree-node-handle.react-flow__handle {
+  transform: translate(-50%, -50%);
+}
+
+.react-flow__edge-path.tree-edge {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.react-flow__edge-path.tree-edge-main.tree-edge--root {
+  stroke: var(--tree-wood-root);
+}
+
+.react-flow__edge-path.tree-edge-shadow.tree-edge--root {
+  stroke: #3d2410;
+  opacity: 0.38;
+}
+
+.react-flow__edge-path.tree-edge-main.tree-edge--branch {
+  stroke: var(--tree-wood-branch);
+}
+
+.react-flow__edge-path.tree-edge-shadow.tree-edge--branch {
+  stroke: #4a2e16;
+  opacity: 0.28;
+}
+
+.react-flow__edge-path.tree-edge-main.tree-edge--leafStem {
+  stroke: var(--tree-leaf);
+}
+
+.react-flow__edge-path.tree-edge-shadow.tree-edge--leafStem {
+  stroke: #1d6b44;
+  opacity: 0.22;
+}
+
+@media (prefers-color-scheme: dark) {
+  .react-flow__edge-path.tree-edge-shadow.tree-edge--root {
+    stroke: #2a1a0c;
+    opacity: 0.55;
+  }
+
+  .react-flow__edge-path.tree-edge-shadow.tree-edge--branch {
+    stroke: #1c1208;
+    opacity: 0.45;
+  }
+
+  .react-flow__edge-path.tree-edge-shadow.tree-edge--leafStem {
+    stroke: #0f3d28;
+    opacity: 0.4;
+  }
 }
 
 /* ── Map ────────────────────────────────────────────────────────────────── */

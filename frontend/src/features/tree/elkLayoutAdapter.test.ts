@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
-import { CELL_H, CELL_W, FAMILY_NODE_WIDTH, PERSON_NODE_WIDTH, layoutTree } from './elkLayoutAdapter';
+import { CELL_H, CELL_W, PERSON_NODE_WIDTH, layoutTree } from './elkLayoutAdapter';
 
 function makeNode(
   id: string,
@@ -112,9 +112,49 @@ describe('layoutTree', () => {
     const bar = nodes.find((node) => node.data.kind === 'family');
     expect(bar).toBeDefined();
     const coupleCenter = ((27 + 29) / 2) * CELL_W + PERSON_NODE_WIDTH / 2;
-    const barCenter = bar!.position.x + FAMILY_NODE_WIDTH / 2;
+    const barCenter = bar!.position.x + (bar!.width ?? 0) / 2;
     expect(Math.abs(barCenter - coupleCenter)).toBeLessThan(1);
+    expect(bar!.width).toBeGreaterThan(CELL_W);
     const childMid = ((8 + 28) / 2) * CELL_W + PERSON_NODE_WIDTH / 2;
     expect(Math.abs(barCenter - childMid)).toBeGreaterThan(CELL_W);
+    expect(bar!.data.kind === 'family' && bar!.data.childHandlePct.svetlana).toBe(0);
+    expect(bar!.data.kind === 'family' && bar!.data.childHandlePct.sergey).toBeGreaterThan(0);
+  });
+
+  it('uses organic wood and leaf edges: trunk, branch, living shoot', () => {
+    const tree = [
+      makeNode(
+        'root',
+        { first_name: 'Дед', status: 'deceased' },
+        { children: ['parent'] },
+        { x: 0, y: 4 },
+      ),
+      makeNode(
+        'parent',
+        { first_name: 'Отец', status: 'deceased' },
+        { parents: ['root'], children: ['kid'] },
+        { x: 0, y: 2 },
+      ),
+      makeNode(
+        'kid',
+        { first_name: 'Сын', status: 'alive' },
+        { parents: ['parent'] },
+        { x: 0, y: 0 },
+      ),
+    ];
+    const { edges } = layoutTree(tree);
+    const byId = Object.fromEntries(edges.map((edge) => [edge.id, edge]));
+
+    expect(byId['e-root-family:root']?.data).toMatchObject({ kind: 'root' });
+    expect(byId['e-root-family:root']?.style?.strokeWidth).toBe(4.4);
+    expect(byId['e-family:root-parent']?.data).toMatchObject({ kind: 'branch' });
+    expect(byId['e-parent-family:parent']?.data).toMatchObject({ kind: 'branch' });
+    expect(byId['e-family:parent-kid']?.data).toMatchObject({ kind: 'leafStem' });
+    expect(byId['e-family:parent-kid']?.style?.strokeWidth).toBe(1.7);
+    expect(edges.every((edge) => edge.type === 'organic')).toBe(true);
+    expect(byId['e-root-family:root']?.sourceHandle).toBe('out');
+    expect(byId['e-root-family:root']?.targetHandle).toBe('in-root');
+    expect(byId['e-family:parent-kid']?.sourceHandle).toBe('out-kid');
+    expect(byId['e-family:parent-kid']?.targetHandle).toBe('in');
   });
 });

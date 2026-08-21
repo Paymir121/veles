@@ -23,6 +23,15 @@ function nameInitial(label: string): string {
   return letter ? letter.toUpperCase() : '?';
 }
 
+function CenterHandles() {
+  return (
+    <>
+      <Handle id="in" type="target" position={Position.Bottom} className="tree-node-handle" isConnectable={false} />
+      <Handle id="out" type="source" position={Position.Top} className="tree-node-handle" isConnectable={false} />
+    </>
+  );
+}
+
 export function PersonNode({ id, data }: PersonNodeProps) {
   if (!data || data.kind !== 'person') return null;
 
@@ -37,9 +46,7 @@ export function PersonNode({ id, data }: PersonNodeProps) {
 
   return (
     <div className="person-node" aria-label={data.label}>
-      <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
-      <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
-      <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />
+      <CenterHandles />
       <div
         className={`person-node-card ${cardStatusClass(data)} ${cardGenderClass(data)}${showPhoto ? ' person-node-card--photo-mode' : ''}${data.selected ? ' person-node-card--selected' : ''}`}
       >
@@ -78,23 +85,38 @@ export function PersonNode({ id, data }: PersonNodeProps) {
         </button>
         )}
       </div>
-      <Handle id="top-left" type="source" position={Position.Top} className="!invisible !left-[30%]" />
-      <Handle id="top-center" type="source" position={Position.Top} className="!invisible !left-1/2" />
-      <Handle id="top-right" type="source" position={Position.Top} className="!invisible !left-[70%]" />
     </div>
   );
 }
 
-export function FamilyNode(_props: FamilyNodeProps) {
+export function FamilyNode({ data }: FamilyNodeProps) {
+  if (!data || data.kind !== 'family') return null;
+
   return (
     <div className="family-node" aria-hidden="true">
-      <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
-      <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
-      <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />
       <div className="family-node-bar" />
-      <Handle id="top-left" type="source" position={Position.Top} className="!invisible !left-[28%]" />
-      <Handle id="top-center" type="source" position={Position.Top} className="!invisible !left-1/2" />
-      <Handle id="top-right" type="source" position={Position.Top} className="!invisible !left-[70%]" />
+      {Object.entries(data.parentHandlePct).map(([parentId, pct]) => (
+        <Handle
+          key={`in-${parentId}`}
+          id={`in-${parentId}`}
+          type="target"
+          position={Position.Bottom}
+          className="tree-node-handle"
+          style={{ left: `${pct}%` }}
+          isConnectable={false}
+        />
+      ))}
+      {Object.entries(data.childHandlePct).map(([childId, pct]) => (
+        <Handle
+          key={`out-${childId}`}
+          id={`out-${childId}`}
+          type="source"
+          position={Position.Top}
+          className="tree-node-handle"
+          style={{ left: `${pct}%` }}
+          isConnectable={false}
+        />
+      ))}
     </div>
   );
 }

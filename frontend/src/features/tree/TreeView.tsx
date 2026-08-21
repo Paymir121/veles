@@ -14,11 +14,13 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTree } from './hooks';
-import { layoutTree, type TreeLayoutNodeData } from './elkLayoutAdapter';
+import { layoutTree, TREE_EDGE_TYPE, type TreeLayoutNodeData } from './elkLayoutAdapter';
+import { OrganicTreeEdge } from './OrganicTreeEdge';
 import { FamilyNode, PersonNode } from './PersonNode';
 import { DEFAULT_EDGE_STROKE_WIDTH, getEdgeStrokeWidth, scaleEdgeStrokeWidth } from './treeAppearance';
 
 const nodeTypes = { person: PersonNode, family: FamilyNode };
+const edgeTypes = { [TREE_EDGE_TYPE]: OrganicTreeEdge };
 
 /** Keep a focused card close to native size so FIO stays readable. */
 const FIT_MAX_ZOOM = 1.1;
@@ -207,6 +209,7 @@ function TreeViewInner({ focusPersonId, showPhotos = true, onPersonSelect, onPer
           });
         }}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodesDraggable={!isNarrow}
         nodesConnectable={false}
         nodeDragThreshold={8}
