@@ -35,7 +35,7 @@ function applyShowPhotos(
   );
 }
 
-function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
+function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
   const [edgeStrokeWidth] = useState(getEdgeStrokeWidth);
@@ -97,6 +97,8 @@ function TreeViewInner({ focusPersonId, showPhotos = false }: TreeViewProps) {
     (_event, node) => {
       if (draggingNodeRef.current) return;
       if (node.data.kind !== 'person') return;
+      const target = _event.target as HTMLElement | null;
+      if (target?.closest('.person-node-edit')) return;
       navigate(`/person/${node.id}`);
     },
     [navigate],

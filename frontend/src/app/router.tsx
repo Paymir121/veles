@@ -3,6 +3,7 @@ import { Layout } from '@/shared/components/Layout';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
 import { RequireAuth } from '@/features/auth/RequireAuth';
+import { DownloadPage } from '@/features/download/DownloadPage';
 import { HomePage } from '@/features/home/HomePage';
 import { PersonDetailPage } from '@/features/persons/PersonDetailPage';
 import { PersonFormPage } from '@/features/persons/PersonFormPage';
@@ -24,6 +25,7 @@ export function AppRouter() {
 
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/download" element={<DownloadPage />} />
         <Route path="/tree" element={<TreePage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/person/:id" element={<PersonDetailPage />} />

@@ -8,7 +8,13 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+# `build/` is the portable-exe pipeline (like dsinvent). Ignore only artifacts.
+build/dist/
+build/work/
+build/staging/
+build/icon.ico
+build/favicon.ico
+build/*.spec
 develop-eggs/
 dist/
 downloads/
@@ -234,6 +240,7 @@ Thumbs.db
 backend/media/
 backend/staticfiles/
 backend/db.sqlite3
+backend/.secret_key
 backend/log/
 *.env
 !*.env.example

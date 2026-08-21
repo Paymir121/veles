@@ -45,6 +45,12 @@
 - Деплой: сборка образов → GHCR → SSH + `docker compose pull && up -d`. Два compose-файла
   (dev с `build:`, prod с `image:` overrides).
 - Локальная разработка без Docker — верхнеуровневый `main.py` поднимает оба dev-сервера.
+- Portable Windows exe — `build/build.py` по той же схеме, что dsinvent (`build/dist/`,
+  версия из `veles/app_version.py`, git hash в `build_meta.py`, PyInstaller onedir,
+  опционально Inno Setup). Это не Qt-приложение: Nuitka не используется. Замороженный
+  `portable.py` поднимает waitress на 127.0.0.1:8000, отдаёт Vite-бандл из `spa/`,
+  SQLite/media/логи в `data/` рядом с exe. Ключ Яндекс.Карт вшивается в JS на
+  `npm run build` (нужен `frontend/.env`). Проверка без PyInstaller: `py portable.py`.
 - `.claude/` версионируется (кроме `settings.local.json`) — skills/settings.json общие для
   всех, кто клонирует репозиторий.
 - На этой машине `python`/`python3` не резолвятся в PATH (только нерабочий Windows Store

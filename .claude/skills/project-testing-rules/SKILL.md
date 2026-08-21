@@ -29,8 +29,8 @@ description: Use when verifying changes, deciding how to test a model/endpoint/U
   pass (or are manually re-verified via Playwright MCP with a screenshot) the smoke test.
 
 # Tree layout
-- Packing looks wrong: run `py dump_tree_layout.py` (optional `--q Фамилия`) from the
-  repo root before guessing. It prints grid cells, families, and hole/split checks.
+- Who sits where: skill `read-tree-layout` (`py dump_tree_layout.py`). Do not
+  decode `/api/tree/` JSON or guess from a screenshot.
 
 # Avoid
 - Declaring a tree/map change done without actually rendering it.

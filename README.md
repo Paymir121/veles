@@ -57,6 +57,24 @@ py main.py
 
 Или через обёртки `run.ps1` / `run.bat`.
 
+## Portable exe (Windows)
+
+Папка с `Veles.exe` — тот же формат, что у dsinvent (`build/dist/…`), без Docker и без Node на машине пользователя.
+
+```bash
+cd backend
+.venv\Scripts\activate
+pip install -r requirements-build.txt
+
+cd ..
+py build/build.py              # → build/dist/veles_v0.1.0.0.commit-<hash>/
+py build/build.py --installer  # плюс Veles_Setup.exe, нужен Inno Setup 6
+```
+
+Запуск: `Veles.exe` (консоль, Ctrl+C — стоп). Данные (SQLite, фото, логи) — в `data/` рядом с exe. Карта работает, только если при сборке в `frontend/.env` был `VITE_YANDEX_MAPS_API_KEY`.
+
+Без PyInstaller, из исходников: `npm run build` в `frontend/`, затем `py portable.py`.
+
 ### Тестовые данные
 
 ```bash
@@ -100,6 +118,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 backend/          Django + DRF + Djoser
 frontend/         React + Vite + TS (feature-based: features/<name>/)
 main.py           Локальный запуск обоих dev-серверов
+portable.py       Один процесс: Django + собранный SPA (основа exe)
+build/            Сборка portable exe (`py build/build.py`)
 init.py           Загрузка демо-данных
 docker-compose.yml / .prod.yml   Docker-конфигурация
 .github/workflows/               CI/CD

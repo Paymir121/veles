@@ -32,9 +32,17 @@ from typing import Any
 
 def _get_log_dir() -> Path:
     """backend/log/ locally; /app/log inside the Docker image (same relative
-    layout, since the Dockerfile COPYs backend/ to WORKDIR /app). Falls back
-    to cwd/log if the preferred location isn't writable."""
-    log_dir = Path(__file__).resolve().parent.parent / "log"
+    layout, since the Dockerfile COPYs backend/ to WORKDIR /app). Portable
+    exe: ``data/log`` next to the exe (VELES_DATA_DIR / VELES_LOG_DIR).
+    Falls back to cwd/log if the preferred location isn't writable."""
+    env_log = os.environ.get("VELES_LOG_DIR")
+    env_data = os.environ.get("VELES_DATA_DIR")
+    if env_log:
+        log_dir = Path(env_log)
+    elif env_data:
+        log_dir = Path(env_data) / "log"
+    else:
+        log_dir = Path(__file__).resolve().parent.parent / "log"
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:

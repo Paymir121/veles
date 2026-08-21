@@ -1,12 +1,14 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
-import { formatShortName } from '@/shared/utils/formatName';
+import { formatFullName } from '@/shared/utils/formatName';
+import { formatLifespan } from './familyChartAdapter';
 
 export type TreeEdgeKind = 'leafStem' | 'branch' | 'root';
 
 export interface PersonNodeData extends Record<string, unknown> {
   kind: 'person';
   label: string;
+  lifespan: string;
   status: TreeNodeData['status'];
   isRootGeneration: boolean;
   hasChildren: boolean;
@@ -26,9 +28,11 @@ export interface TreeEdgeData extends Record<string, unknown> {
   kind: TreeEdgeKind;
 }
 
-/** Pixel size of one backend grid cell. */
-export const CELL_W = 132;
-export const CELL_H = 70;
+/** Pixel size of one backend grid cell (positions). Node boxes can be smaller. */
+export const CELL_W = 124;
+export const CELL_H = 56;
+export const PERSON_NODE_WIDTH = 216;
+export const PERSON_NODE_HEIGHT = 72;
 export const FAMILY_NODE_WIDTH = 18;
 export const FAMILY_NODE_HEIGHT = 8;
 
@@ -192,15 +196,16 @@ export function layoutTree(
     position: { x: cellX(person), y: cellY(person) },
     data: {
       kind: 'person',
-      label: formatShortName(person.data),
+      label: formatFullName(person.data),
+      lifespan: formatLifespan(person.data),
       status: person.data.status,
       isRootGeneration: person.rels.parents.length === 0,
       hasChildren: person.rels.children.length > 0,
       avatar: person.data.avatar,
-      showPhotos: false,
+      showPhotos: true,
     },
-    width: CELL_W,
-    height: CELL_H,
+    width: PERSON_NODE_WIDTH,
+    height: PERSON_NODE_HEIGHT,
   }));
 
   for (const family of families) {
@@ -214,9 +219,10 @@ export function layoutTree(
 
     // The bar is the couple's union. A child who sits far away (married into
     // another subtree) must not drag it into the gap between families.
-    const parentCenterX = parents.reduce((sum, node) => sum + node.position.x + CELL_W / 2, 0) / parents.length;
+    const parentCenterX =
+      parents.reduce((sum, node) => sum + node.position.x + PERSON_NODE_WIDTH / 2, 0) / parents.length;
     const parentTop = Math.min(...parents.map((node) => node.position.y));
-    const childBottom = Math.max(...children.map((node) => node.position.y + CELL_H));
+    const childBottom = Math.max(...children.map((node) => node.position.y + PERSON_NODE_HEIGHT));
 
     nodes.push({
       id: family.id,

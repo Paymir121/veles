@@ -17,7 +17,7 @@ inherited-knitting-parnas.md`. Cursor читает этот же `CLAUDE.md` (к
 
 ## Куда смотреть
 - `AI_MEMORY.md` — устоявшиеся архитектурные решения (читать первым).
-- Раскладка дерева странная — `py dump_tree_layout.py` (фильтр `--q Логинов`): таблица x/y, семьи, CHECKS. Не гадать по скриншоту.
+- Раскладка дерева — скилл `read-tree-layout`: `py dump_tree_layout.py`, не JSON и не скриншот.
 - `C:\dev\obsidian-vault\veles\00_Home.md` — история сессий / вне-проектные заметки.
 - Нативная память Claude Code уже активна для этого проекта — писать по мере решений,
   отдельной настройки не требуется.
@@ -36,6 +36,10 @@ main.py     Локальный запуск backend+frontend без Docker — �
             (НЕ `python main.py`: на этой машине `python`/`python3` не в PATH,
             резолвится нерабочий Windows Store alias; `py`-лаунчер работает).
             Есть обёртки `run.ps1` / `run.bat`, которые делают это автоматически.
+portable.py Один процесс: Django (waitress) + собранный SPA, SQLite рядом с exe.
+            Для проверки без PyInstaller: `py portable.py` (нужен `frontend/dist`).
+build/      Portable Windows exe по образцу dsinvent: `py build/build.py`
+            → `build/dist/veles_v…commit-…/Veles.exe`. `--installer` — Inno Setup.
 docker-compose.yml (+ .prod.yml), nginx.conf   — production
 .github/workflows/  ci.yml, deploy.yml
 ```

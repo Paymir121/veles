@@ -7,12 +7,20 @@ import { formatFullName } from '@/shared/utils/formatName';
 
 export { formatFullName };
 
+/** Year from an ISO date, or the free-text as typed. Empty stays empty. */
+export function yearFromDate(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const iso = trimmed.match(/^(\d{4})-\d{2}-\d{2}/);
+  return iso ? iso[1] : trimmed;
+}
+
+/** Birth/death years for tree cards and the people list. Missing dates stay blank. */
 export function formatLifespan(info: TreeNodeData): string {
-  const birth = info.birth_date || '?';
-  if (info.status === 'deceased') {
-    return `${birth} – ${info.death_date || '?'}`;
-  }
-  return birth !== '?' ? birth : '';
+  const birth = yearFromDate(info.birth_date);
+  const death = info.status === 'deceased' ? yearFromDate(info.death_date) : '';
+  if (birth && death) return `${birth} – ${death}`;
+  return birth || death;
 }
 
 export interface FamilyIsland {

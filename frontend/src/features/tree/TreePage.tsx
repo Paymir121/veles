@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/useAuthStore';
 import { formatFullName } from './familyChartAdapter';
@@ -6,14 +6,18 @@ import { groupTreePeople } from './treePeople';
 import { useTree } from './hooks';
 import { PeoplePanel } from './PeoplePanel';
 import { TreeView } from './TreeView';
+import { useTreeUiStore } from './treeUiStore';
 
 export function TreePage() {
   const { data } = useTree();
   const [searchParams, setSearchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState('');
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [showPhotos, setShowPhotos] = useState(false);
   const linkedPersonId = useAuthStore((state) => state.user?.linked_person_id);
+  const isPanelOpen = useTreeUiStore((state) => state.isPeoplePanelOpen);
+  const showPhotos = useTreeUiStore((state) => state.showPhotos);
+  const togglePeoplePanel = useTreeUiStore((state) => state.togglePeoplePanel);
+  const toggleShowPhotos = useTreeUiStore((state) => state.toggleShowPhotos);
+  const setPeoplePanelOpen = useTreeUiStore((state) => state.setPeoplePanelOpen);
 
   const groups = useMemo(() => (data ? groupTreePeople(data) : []), [data]);
   const requestedId = searchParams.get('person') ?? '';
@@ -26,10 +30,12 @@ export function TreePage() {
     return node ? formatFullName(node.data) : '';
   }, [data, focusPersonId]);
 
+  useEffect(() => () => setPeoplePanelOpen(false), [setPeoplePanelOpen]);
+
   function handleSelect(personId: string) {
     setPickedId(personId);
     if (requestedId) setSearchParams({}, { replace: true });
-    setIsPanelOpen(false);
+    setPeoplePanelOpen(false);
   }
 
   return (
@@ -40,7 +46,7 @@ export function TreePage() {
             type="button"
             className="btn btn-secondary text-sm sticky-panel-toggle"
             aria-expanded={isPanelOpen}
-            onClick={() => setIsPanelOpen((open) => !open)}
+            onClick={togglePeoplePanel}
           >
             {isPanelOpen ? 'Скрыть людей' : 'Люди'}
           </button>
@@ -48,7 +54,7 @@ export function TreePage() {
             type="button"
             className={`btn text-sm ${showPhotos ? 'btn-primary' : 'btn-secondary'}`}
             aria-pressed={showPhotos}
-            onClick={() => setShowPhotos((on) => !on)}
+            onClick={toggleShowPhotos}
           >
             {showPhotos ? 'Скрыть фото' : 'Показать фото'}
           </button>

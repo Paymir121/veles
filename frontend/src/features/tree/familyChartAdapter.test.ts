@@ -35,13 +35,13 @@ describe('formatFullName', () => {
 });
 
 describe('formatLifespan', () => {
-  it('shows just the birth date for a living person', () => {
+  it('shows the birth year for a living person', () => {
     expect(formatLifespan(makeTreeNodeData({ status: 'alive', birth_date: '1950-01-01' }))).toBe(
-      '1950-01-01',
+      '1950',
     );
   });
 
-  it('shows a birth-death range for a deceased person', () => {
+  it('shows a birth-death year range for a deceased person', () => {
     expect(
       formatLifespan(
         makeTreeNodeData({
@@ -50,13 +50,20 @@ describe('formatLifespan', () => {
           death_date: '2020-05-05',
         }),
       ),
-    ).toBe('1950-01-01 – 2020-05-05');
+    ).toBe('1950 – 2020');
   });
 
-  it('uses "?" placeholders for missing dates', () => {
+  it('leaves missing years empty instead of filling them with ?', () => {
     expect(
       formatLifespan(makeTreeNodeData({ status: 'deceased', birth_date: '', death_date: '' })),
-    ).toBe('? – ?');
+    ).toBe('');
+    expect(formatLifespan(makeTreeNodeData({ status: 'alive', birth_date: '' }))).toBe('');
+  });
+
+  it('keeps free-text dates as typed', () => {
+    expect(
+      formatLifespan(makeTreeNodeData({ status: 'alive', birth_date: 'около 1920' })),
+    ).toBe('около 1920');
   });
 });
 

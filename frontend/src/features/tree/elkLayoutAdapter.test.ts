@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode, TreeNodeData } from '@/shared/types';
-import { CELL_H, CELL_W, FAMILY_NODE_WIDTH, layoutTree } from './elkLayoutAdapter';
+import { CELL_H, CELL_W, FAMILY_NODE_WIDTH, PERSON_NODE_WIDTH, layoutTree } from './elkLayoutAdapter';
 
 function makeNode(
   id: string,
@@ -40,6 +40,19 @@ describe('layoutTree', () => {
     ];
     const { nodes } = layoutTree(tree);
     expect(nodes[0].position).toEqual({ x: 2 * CELL_W, y: 4 * CELL_H });
+    expect(nodes[0].data).toMatchObject({
+      kind: 'person',
+      label: 'Петров Анна',
+      lifespan: '',
+    });
+  });
+
+  it('puts birth and death years on the person node', () => {
+    const tree = [
+      makeNode('a', { birth_date: '1950-03-01', death_date: '2020-01-01', status: 'deceased' }),
+    ];
+    const { nodes } = layoutTree(tree);
+    expect(nodes[0].data).toMatchObject({ lifespan: '1950 – 2020' });
   });
 
   it('creates separate family connectors for half-siblings with different fathers', () => {
@@ -89,10 +102,10 @@ describe('layoutTree', () => {
     const { nodes } = layoutTree(tree);
     const bar = nodes.find((node) => node.data.kind === 'family');
     expect(bar).toBeDefined();
-    const coupleCenter = ((27 + 29) / 2) * CELL_W + CELL_W / 2;
+    const coupleCenter = ((27 + 29) / 2) * CELL_W + PERSON_NODE_WIDTH / 2;
     const barCenter = bar!.position.x + FAMILY_NODE_WIDTH / 2;
     expect(Math.abs(barCenter - coupleCenter)).toBeLessThan(1);
-    const childMid = ((8 + 28) / 2) * CELL_W + CELL_W / 2;
+    const childMid = ((8 + 28) / 2) * CELL_W + PERSON_NODE_WIDTH / 2;
     expect(Math.abs(barCenter - childMid)).toBeGreaterThan(CELL_W);
   });
 });
