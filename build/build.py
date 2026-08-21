@@ -576,18 +576,23 @@ class PyInstallerBuilder:
             "Установка PyInstaller / waitress / whitenoise",
         )
 
-    def ensure_icon(self) -> None:
-        if os.path.isfile(ICON_ICO):
-            py_logger.info(f"📌 Иконка exe: {ICON_ICO}")
-            return
+    def ensure_icon(self) -> bool:
         python = _backend_python()
         script = os.path.join(BUILD_DIR, "create_icon.py")
-        self.runner.run(f'"{python}" "{script}"', "Создание icon.ico", cwd=PROJECT_ROOT)
-        if os.path.isfile(ICON_ICO):
+        ok = self.runner.run(
+            f'"{python}" "{script}"',
+            "Иконка exe из frontend/public/favicon.svg",
+            cwd=PROJECT_ROOT,
+        )
+        if ok and os.path.isfile(ICON_ICO):
             py_logger.info(f"📌 Иконка exe: {ICON_ICO}")
+            return True
+        py_logger.error("Не удалось собрать icon.ico из favicon.svg проекта")
+        return False
 
     def build(self) -> bool:
-        self.ensure_icon()
+        if not self.ensure_icon():
+            return False
         _write_pyinstaller_spec()
         python = _backend_python()
         cmd = (

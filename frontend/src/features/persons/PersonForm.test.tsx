@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { hasYandexMapsApiKey } from '@/shared/maps/yandexMapsSetup';
 import { PersonForm } from './PersonForm';
 
 const { createPlaceMock } = vi.hoisted(() => ({ createPlaceMock: vi.fn() }));
@@ -8,7 +9,7 @@ const { createPlaceMock } = vi.hoisted(() => ({ createPlaceMock: vi.fn() }));
 vi.mock('./hooks', () => ({
   usePerson: vi.fn(() => ({ data: undefined })),
   usePersons: vi.fn(() => ({ data: [] })),
-  useBurialPlaceSearch: vi.fn(() => ({ data: [] })),
+  useAllBurialPlaces: vi.fn(() => ({ data: [] })),
   useBurialPlace: vi.fn(() => ({ data: undefined })),
   useCreateBurialPlace: vi.fn(() => ({
     mutateAsync: createPlaceMock,
@@ -17,13 +18,14 @@ vi.mock('./hooks', () => ({
   })),
 }));
 
-beforeEach(() => {
-  createPlaceMock.mockReset();
-});
-
 vi.mock('@/shared/maps/yandexMapsSetup', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/maps/yandexMapsSetup')>();
-  return { ...actual, hasYandexMapsApiKey: () => false };
+  return { ...actual, hasYandexMapsApiKey: vi.fn(() => false) };
+});
+
+beforeEach(() => {
+  createPlaceMock.mockReset();
+  vi.mocked(hasYandexMapsApiKey).mockReturnValue(false);
 });
 
 async function goToStep(user: ReturnType<typeof userEvent.setup>, stepName: string) {
@@ -52,7 +54,9 @@ describe('PersonForm - status-driven conditional fields', () => {
 
     // Navigate to burial step
     await goToStep(user, 'Захоронение');
-    expect(screen.getByLabelText('Место захоронения')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Место захоронения' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Детали участка')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Поиск кладбища/i)).not.toBeInTheDocument();
   });
 
   it('clears (not just hides) burial fields when switching back to alive', async () => {
@@ -121,6 +125,24 @@ describe('PersonForm - burial place create without a maps key', () => {
     expect(screen.getByLabelText('Широта')).toBeInTheDocument();
     expect(screen.getByLabelText('Долгота')).toBeInTheDocument();
     expect(screen.queryByText(/Кликните на карте/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Поиск кладбища/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('PersonForm - burial place map is the primary input', () => {
+  it('puts the map button first and folds manual fields behind a disclosure', async () => {
+    vi.mocked(hasYandexMapsApiKey).mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<PersonForm onSubmit={vi.fn()} />);
+
+    await user.selectOptions(screen.getByLabelText('Статус'), 'deceased');
+    await goToStep(user, 'Захоронение');
+
+    const mapButton = screen.getByRole('button', { name: 'Указать на карте' });
+    const manualToggle = screen.getByText('Указать вручную');
+    expect(mapButton.compareDocumentPosition(manualToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/Поиск кладбища/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Карта недоступна/i)).not.toBeInTheDocument();
   });
 });
 

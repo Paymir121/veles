@@ -24,7 +24,6 @@ import { PhotoUploadField } from './PhotoUploadField';
 import {
   useAllBurialPlaces,
   useBurialPlace,
-  useBurialPlaceSearch,
   useCreateBurialPlace,
   usePerson,
   usePersons,
@@ -859,11 +858,11 @@ interface BurialPlaceFieldProps {
   onYmapsReady: (instance: YMapsApi) => void;
 }
 
-// Either picks an existing place or fills in a new one. The new place is NOT
-// saved here: the draft belongs to the form and is created together with the
-// person (see PersonForm.handleSubmit). Before that, a point picked on the map
-// was thrown away unless a separate "create place" button was pressed, which
-// is how a person could end up deceased with no grave and invisible on the map.
+// The map is the main way to set a place; name/address/coords are optional.
+// The new place is NOT saved here: the draft belongs to the form and is created
+// together with the person (see PersonForm.handleSubmit). Before that, a point
+// picked on the map was thrown away unless a separate "create place" button was
+// pressed, which is how a person could end up deceased with no grave.
 function BurialPlaceField({
   value,
   onChange,
@@ -871,12 +870,9 @@ function BurialPlaceField({
   onDraftChange,
   onYmapsReady,
 }: BurialPlaceFieldProps) {
-  const [query, setQuery] = useState('');
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
-
-  const debouncedQuery = useDebouncedValue(query, 300);
   const { data: selected } = useBurialPlace(value);
-  const { data: results = [] } = useBurialPlaceSearch(debouncedQuery);
+  const mapsAvailable = hasYandexMapsApiKey();
 
   function setDraftField<K extends keyof BurialPlaceDraft>(key: K, fieldValue: string) {
     onDraftChange({ ...draft, [key]: fieldValue });
@@ -888,6 +884,7 @@ function BurialPlaceField({
     address?: string;
     city?: string;
   }) {
+    if (value !== '') onChange('');
     const address = location.address ?? draft.address;
     const city = location.city ?? draft.city;
     onDraftChange({
@@ -901,13 +898,90 @@ function BurialPlaceField({
   }
 
   const hasCoords = draft.latitude !== '' && draft.longitude !== '';
+  const pickerLatitude =
+    draft.latitude || (selected?.latitude != null ? String(selected.latitude) : '');
+  const pickerLongitude =
+    draft.longitude || (selected?.longitude != null ? String(selected.longitude) : '');
+
+  const manualFields = (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="field-label">
+          Название
+          <input
+            className="input"
+            value={draft.name}
+            onChange={(e) => setDraftField('name', e.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          Город
+          <input
+            className="input"
+            value={draft.city}
+            onChange={(e) => setDraftField('city', e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="field-label">
+        Адрес
+        <input
+          className="input"
+          value={draft.address}
+          onChange={(e) => setDraftField('address', e.target.value)}
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="field-label">
+          Широта
+          <input
+            className="input"
+            type="number"
+            step="any"
+            value={draft.latitude}
+            onChange={(e) => setDraftField('latitude', e.target.value)}
+            placeholder="55.751244"
+          />
+        </label>
+        <label className="field-label">
+          Долгота
+          <input
+            className="input"
+            type="number"
+            step="any"
+            value={draft.longitude}
+            onChange={(e) => setDraftField('longitude', e.target.value)}
+            placeholder="37.618423"
+          />
+        </label>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-3">
-      <label className="field-label">
-        Место захоронения
-        {selected && (
-          <div className="flex items-center gap-2 py-1">
+    <div className="space-y-4">
+      {mapsAvailable ? (
+        <div className="space-y-2">
+          <button
+            type="button"
+            className="btn text-sm"
+            onClick={() => setMapDialogOpen(true)}
+          >
+            {hasCoords || selected ? 'Изменить точку на карте' : 'Указать на карте'}
+          </button>
+          <p className="text-sm text-text-muted">
+            Кликните по карте — место сохранится вместе с человеком.
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">
+          Карта недоступна (не задан ключ Яндекс.Карт) — укажите координаты вручную.
+        </p>
+      )}
+
+      {selected && (
+        <div className="rounded-lg border border-border bg-bg-muted px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2">
             <span className="text-text text-sm">
               {selected.name} {selected.city && `(${selected.city})`}
             </span>
@@ -915,150 +989,51 @@ function BurialPlaceField({
               Очистить
             </button>
           </div>
-        )}
-        {!selected && (
-          <input
-            className="input"
-            placeholder="Поиск кладбища/места по названию или городу..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        )}
-      </label>
-
-      {selected && selected.persons && selected.persons.length > 0 && (
-        <div className="rounded-lg border border-border bg-bg-muted px-4 py-3">
-          <p className="text-xs text-text-muted mb-2">Здесь захоронены:</p>
-          <ul className="space-y-1">
-            {selected.persons.map((person) => (
-              <li key={person.id} className="text-sm">
-                <a href={`/person/${person.id}`} className="text-accent hover:underline">
-                  {[person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' ')}
-                </a>
-                {person.birth_date && (
-                  <span className="text-text-muted ml-2 text-xs">
-                    {person.birth_date}
-                    {person.death_date && ` — ${person.death_date}`}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {selected.persons && selected.persons.length > 0 && (
+            <>
+              <p className="text-xs text-text-muted">Здесь захоронены:</p>
+              <ul className="space-y-1">
+                {selected.persons.map((person) => (
+                  <li key={person.id} className="text-sm">
+                    <a href={`/person/${person.id}`} className="text-accent hover:underline">
+                      {[person.last_name, person.first_name, person.patronymic].filter(Boolean).join(' ')}
+                    </a>
+                    {person.birth_date && (
+                      <span className="text-text-muted ml-2 text-xs">
+                        {person.birth_date}
+                        {person.death_date && ` — ${person.death_date}`}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
 
-      {!selected && debouncedQuery.trim() && results.length > 0 && (
-        <ul className="picker-results">
-          {results.map((place) => (
-            <li key={place.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(place.id);
-                  setQuery('');
-                }}
-              >
-                <span>{place.name} {place.city && `(${place.city})`}</span>
-                {place.persons && place.persons.length > 0 && (
-                  <span className="block text-xs text-text-muted mt-0.5">
-                    {place.persons.map((p) =>
-                      [p.last_name, p.first_name].filter(Boolean).join(' ')
-                    ).join(', ')}
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {!selected && (
-        <div className="card space-y-4">
-          <p className="text-sm text-text-muted">
-            Место сохранится вместе с человеком — отдельно ничего нажимать не нужно.
-          </p>
-          {hasYandexMapsApiKey() ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn btn-secondary text-sm"
-                onClick={() => setMapDialogOpen(true)}
-              >
-                {hasCoords ? 'Изменить точку на карте' : 'Указать на карте'}
-              </button>
-            </div>
-          ) : (
-            <p className="text-sm text-text-muted">
-              Карта недоступна (не задан ключ Яндекс.Карт) — укажите координаты вручную.
-            </p>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="field-label">
-              Название
-              <input
-                className="input"
-                value={draft.name}
-                onChange={(e) => setDraftField('name', e.target.value)}
-              />
-            </label>
-            <label className="field-label">
-              Город
-              <input
-                className="input"
-                value={draft.city}
-                onChange={(e) => setDraftField('city', e.target.value)}
-              />
-            </label>
-          </div>
-          <label className="field-label">
-            Адрес
-            <input
-              className="input"
-              value={draft.address}
-              onChange={(e) => setDraftField('address', e.target.value)}
-            />
-          </label>
-
-          {/* Map point result */}
-          {hasCoords && (
-            <div className="text-sm text-text-muted bg-bg-muted rounded-lg px-3 py-2">
-              Координаты: {draft.latitude}, {draft.longitude}
-              {draft.address && <> — {draft.address}</>}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="field-label">
-              Широта
-              <input
-                className="input"
-                type="number"
-                step="any"
-                value={draft.latitude}
-                onChange={(e) => setDraftField('latitude', e.target.value)}
-                placeholder="55.751244"
-              />
-            </label>
-            <label className="field-label">
-              Долгота
-              <input
-                className="input"
-                type="number"
-                step="any"
-                value={draft.longitude}
-                onChange={(e) => setDraftField('longitude', e.target.value)}
-                placeholder="37.618423"
-              />
-            </label>
-          </div>
+      {!selected && hasCoords && (
+        <div className="text-sm text-text-muted bg-bg-muted rounded-lg px-3 py-2">
+          Координаты: {draft.latitude}, {draft.longitude}
+          {draft.address && <> — {draft.address}</>}
         </div>
       )}
 
-      {/* Full-screen map dialog */}
+      {!selected && (mapsAvailable ? (
+        <details>
+          <summary className="cursor-pointer text-sm text-text-muted hover:text-text">
+            Указать вручную
+          </summary>
+          <div className="mt-3">{manualFields}</div>
+        </details>
+      ) : (
+        manualFields
+      ))}
+
       {mapDialogOpen && (
         <MapPickerDialog
-          latitude={draft.latitude}
-          longitude={draft.longitude}
+          latitude={pickerLatitude}
+          longitude={pickerLongitude}
           onLocationPicked={handleLocationPicked}
           onExistingPlaceSelected={(id) => {
             onChange(id);

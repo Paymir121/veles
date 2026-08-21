@@ -294,6 +294,7 @@ body {
   border: 2px solid #8a5a2d;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
 }
 
 .person-node-card--alive {
@@ -306,6 +307,40 @@ body {
 
 .person-node-card--root {
   border-color: #6b4423;
+}
+
+@media (hover: hover) {
+  .person-node:hover .person-node-card {
+    transform: translateY(-2px);
+    background: var(--color-bg);
+    z-index: 1;
+  }
+
+  .person-node:hover .person-node-card--alive {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, #2aa56d 55%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .person-node:hover .person-node-card--deceased {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, #8a5a2d 55%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .person-node:hover .person-node-card--root {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, #6b4423 55%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .person-node:hover .person-node-edit {
+    transform: scale(1.12);
+  }
+}
+
+.react-flow__node.dragging .person-node-card {
+  transform: none;
 }
 
 .person-node-photo-wrap {
@@ -381,10 +416,15 @@ body {
   color: var(--color-accent-contrast);
   cursor: pointer;
   box-shadow: 0 1px 3px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .person-node-edit:hover {
   opacity: 0.92;
+}
+
+.react-flow__node-person:hover {
+  z-index: 8 !important;
 }
 
 .family-node {
