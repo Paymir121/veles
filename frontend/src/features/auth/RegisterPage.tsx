@@ -1,18 +1,31 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { registerUser } from './api';
+import { fetchCurrentUser, loginUser, registerUser } from './api';
+import { useAuthStore } from './useAuthStore';
 
 export function RegisterPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rePassword, setRePassword] = useState('');
   const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const mutation = useMutation({
-    mutationFn: () => registerUser({ username, password, re_password: rePassword }),
+    mutationFn: async () => {
+      await registerUser({ username, password, re_password: rePassword });
+      const tokens = await loginUser({ username, password });
+      login(tokens);
+      try {
+        const user = await fetchCurrentUser();
+        setUser(user);
+      } catch {
+        setUser(null);
+      }
+    },
     onSuccess: () => {
-      navigate('/login', { replace: true });
+      navigate('/tree', { replace: true });
     },
   });
 
@@ -26,7 +39,9 @@ export function RegisterPage() {
   return (
     <div className="flex-1 flex items-center justify-center bg-bg-muted p-4 overflow-y-auto">
       <form className="card w-full max-w-sm flex flex-col gap-1" onSubmit={handleSubmit}>
-        <h1 className="text-2xl font-bold text-center text-accent-secondary">Велес</h1>
+        <h1 className="text-2xl font-bold text-center text-accent-secondary">
+          <Link to="/" className="no-underline text-accent-secondary">Велес</Link>
+        </h1>
         <p className="text-text-muted text-center mb-6">Регистрация</p>
 
         <label className="field-label mb-3">
@@ -82,6 +97,9 @@ export function RegisterPage() {
 
         <p className="text-center text-sm text-text-muted mt-4">
           Уже есть аккаунт? <Link to="/login" className="text-accent font-medium hover:underline">Войти</Link>
+        </p>
+        <p className="text-center text-sm text-text-muted mt-2">
+          <Link to="/tree" className="text-accent font-medium hover:underline">К дереву без входа</Link>
         </p>
       </form>
     </div>

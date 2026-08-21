@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { TreeNode, TreeNodeData } from '@/shared/types';
+import type { Gender, TreeNode, TreeNodeData } from '@/shared/types';
 import { formatFullName } from '@/shared/utils/formatName';
 import { formatLifespan } from './familyChartAdapter';
 
@@ -13,7 +13,11 @@ export interface PersonNodeData extends Record<string, unknown> {
   isRootGeneration: boolean;
   hasChildren: boolean;
   avatar: string | null;
+  gender: Gender;
   showPhotos: boolean;
+  selected: boolean;
+  showEdit: boolean;
+  onEdit?: (personId: string) => void;
 }
 
 export interface FamilyNodeData extends Record<string, unknown> {
@@ -202,7 +206,10 @@ export function layoutTree(
       isRootGeneration: person.rels.parents.length === 0,
       hasChildren: person.rels.children.length > 0,
       avatar: person.data.avatar,
+      gender: person.data.gender_actual,
       showPhotos: true,
+      selected: false,
+      showEdit: false,
     },
     width: PERSON_NODE_WIDTH,
     height: PERSON_NODE_HEIGHT,

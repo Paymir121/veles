@@ -44,6 +44,7 @@ function toJsonPayload(values: PersonFormValues): Record<string, unknown> {
     father: values.father === '' ? null : values.father,
     mother: values.mother === '' ? null : values.mother,
     children: values.children,
+    spouses: values.spouses,
     force_children_reassign: values.force_children_reassign ?? false,
     burial_place: isDeceased && values.burial_place !== '' ? values.burial_place : null,
     burial_plot_details: isDeceased ? values.burial_plot_details : '',
@@ -89,6 +90,7 @@ function toFormData(
   append('father', values.father);
   append('mother', values.mother);
   values.children.forEach((childId) => append('children', childId));
+  values.spouses.forEach((spouseId) => append('spouses', spouseId));
   if (values.force_children_reassign) {
     append('force_children_reassign', 'true');
   }

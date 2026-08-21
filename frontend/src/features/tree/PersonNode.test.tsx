@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
+import { describe, expect, it, vi } from 'vitest';
 import { PersonNode } from './PersonNode';
 import type { PersonNodeData } from './elkLayoutAdapter';
 
@@ -14,29 +14,30 @@ function renderPersonNode(data: Partial<PersonNodeData>) {
     isRootGeneration: false,
     hasChildren: false,
     avatar: 'http://example.com/photo.jpg',
+    gender: 'M',
     showPhotos: true,
+    selected: false,
+    showEdit: true,
     ...data,
   };
 
   render(
-    <MemoryRouter>
-      <ReactFlowProvider>
-        <PersonNode
-          id="1"
-          type="person"
-          data={nodeData}
-          selected={false}
-          zIndex={0}
-          dragging={false}
-          draggable={false}
-          selectable={false}
-          deletable={false}
-          isConnectable={false}
-          positionAbsoluteX={0}
-          positionAbsoluteY={0}
-        />
-      </ReactFlowProvider>
-    </MemoryRouter>,
+    <ReactFlowProvider>
+      <PersonNode
+        id="1"
+        type="person"
+        data={nodeData}
+        selected={false}
+        zIndex={0}
+        dragging={false}
+        draggable={false}
+        selectable={false}
+        deletable={false}
+        isConnectable={false}
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+      />
+    </ReactFlowProvider>,
   );
 }
 
@@ -49,6 +50,19 @@ describe('PersonNode', () => {
     expect(edit).toBeInTheDocument();
     expect(edit).not.toHaveTextContent('Изменить');
     expect(document.querySelector('.person-node-card--alive')).not.toBeNull();
+  });
+
+  it('asks the tree to open the editor instead of navigating away', async () => {
+    const onEdit = vi.fn();
+    const user = userEvent.setup();
+    renderPersonNode({ onEdit });
+    await user.click(screen.getByRole('button', { name: 'Редактировать' }));
+    expect(onEdit).toHaveBeenCalledWith('1');
+  });
+
+  it('hides the edit button when showEdit is off', () => {
+    renderPersonNode({ showEdit: false });
+    expect(screen.queryByRole('button', { name: 'Редактировать' })).not.toBeInTheDocument();
   });
 
   it('omits the years line when lifespan is empty', () => {
@@ -79,5 +93,10 @@ describe('PersonNode', () => {
   it('uses a brown border for a deceased person', () => {
     renderPersonNode({ status: 'deceased', isRootGeneration: false });
     expect(document.querySelector('.person-node-card--deceased')).not.toBeNull();
+  });
+
+  it('marks the focused card as selected', () => {
+    renderPersonNode({ selected: true });
+    expect(document.querySelector('.person-node-card--selected')).not.toBeNull();
   });
 });

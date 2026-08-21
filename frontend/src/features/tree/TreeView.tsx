@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/features/auth/useAuthStore';
 import {
   ReactFlow,
   Controls,
@@ -19,28 +20,68 @@ import { DEFAULT_EDGE_STROKE_WIDTH, getEdgeStrokeWidth, scaleEdgeStrokeWidth } f
 
 const nodeTypes = { person: PersonNode, family: FamilyNode };
 
+/** Keep a focused card close to native size so FIO stays readable. */
+const FIT_MAX_ZOOM = 1.1;
+const FIT_PADDING = 0.45;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2.5;
+
 interface TreeViewProps {
   focusPersonId?: string;
   showPhotos?: boolean;
+  onPersonSelect?: (personId: string) => void;
+  onPersonEdit?: (personId: string) => void;
 }
 
-function applyShowPhotos(
+function applyPersonUi(
   nodes: Node<TreeLayoutNodeData>[],
   showPhotos: boolean,
+  selectedId: string | undefined,
+  showEdit: boolean,
+  onEdit?: (personId: string) => void,
 ): Node<TreeLayoutNodeData>[] {
   return nodes.map((node) =>
     node.data.kind === 'person'
-      ? { ...node, data: { ...node.data, showPhotos } }
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            showPhotos,
+            selected: node.id === selectedId,
+            showEdit,
+            onEdit,
+          },
+        }
       : node,
   );
 }
 
-function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
+function useIsNarrowScreen(): boolean {
+  const [isNarrow, setIsNarrow] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(max-width: 767px)');
+    const apply = () => setIsNarrow(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+
+  return isNarrow;
+}
+
+function TreeViewInner({ focusPersonId, showPhotos = true, onPersonSelect, onPersonEdit }: TreeViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useTree();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [edgeStrokeWidth] = useState(getEdgeStrokeWidth);
   const draggingNodeRef = useRef(false);
   const { fitView } = useReactFlow();
+  const isNarrow = useIsNarrowScreen();
 
   const graph = useMemo(() => layoutTree(data ?? []), [data]);
   const [draggedNodes, setDraggedNodes] = useState<Node<TreeLayoutNodeData>[] | null>(null);
@@ -54,8 +95,8 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
   const nodes = draggedNodes ?? graph.nodes;
 
   const displayNodes = useMemo(
-    () => applyShowPhotos(nodes, showPhotos),
-    [nodes, showPhotos],
+    () => applyPersonUi(nodes, showPhotos, focusPersonId, isAuthenticated, onPersonEdit),
+    [nodes, showPhotos, focusPersonId, isAuthenticated, onPersonEdit],
   );
 
   const displayEdges = useMemo(
@@ -78,15 +119,20 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
 
   useEffect(() => {
     if (graph.nodes.length === 0) return;
-    if (focusPersonId && graph.nodes.some((n) => n.id === focusPersonId)) {
-      requestAnimationFrame(() => {
-        fitView({ nodes: [{ id: focusPersonId }], duration: 400, padding: 0.2 });
+    const targetId =
+      focusPersonId && graph.nodes.some((node) => node.id === focusPersonId)
+        ? focusPersonId
+        : graph.nodes.find((node) => node.data.kind === 'person')?.id;
+    if (!targetId) return;
+    requestAnimationFrame(() => {
+      fitView({
+        nodes: [{ id: targetId }],
+        duration: 400,
+        padding: FIT_PADDING,
+        maxZoom: FIT_MAX_ZOOM,
+        minZoom: MIN_ZOOM,
       });
-    } else {
-      requestAnimationFrame(() => {
-        fitView({ duration: 300, padding: 0.02 });
-      });
-    }
+    });
   }, [focusPersonId, fitView, graph]);
 
   const onNodesChange = useCallback<OnNodesChange<Node<TreeLayoutNodeData>>>((changes) => {
@@ -99,6 +145,15 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
       if (node.data.kind !== 'person') return;
       const target = _event.target as HTMLElement | null;
       if (target?.closest('.person-node-edit')) return;
+      onPersonSelect?.(node.id);
+      if (isNarrow) navigate(`/person/${node.id}`);
+    },
+    [onPersonSelect, isNarrow, navigate],
+  );
+
+  const onNodeDoubleClick = useCallback<NodeMouseHandler<Node<TreeLayoutNodeData>>>(
+    (_event, node) => {
+      if (node.data.kind !== 'person') return;
       navigate(`/person/${node.id}`);
     },
     [navigate],
@@ -118,8 +173,18 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-text-muted">
-        <p>В дереве пока нет ни одного человека.</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-6">
+        <p className="text-text-muted">В дереве пока нет ни одного человека.</p>
+        {isAuthenticated ? (
+          <Link to="/person/new" className="btn">
+            Добавить первого человека
+          </Link>
+        ) : (
+          <p className="text-sm text-text-muted">
+            <Link to="/login" className="text-accent hover:underline">Войдите</Link>
+            , чтобы добавить первого человека.
+          </p>
+        )}
       </div>
     );
   }
@@ -132,6 +197,7 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={() => {}}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         onNodeDragStart={() => {
           draggingNodeRef.current = true;
         }}
@@ -141,13 +207,12 @@ function TreeViewInner({ focusPersonId, showPhotos = true }: TreeViewProps) {
           });
         }}
         nodeTypes={nodeTypes}
-        fitView
-        nodesDraggable
+        nodesDraggable={!isNarrow}
         nodesConnectable={false}
-        nodeDragThreshold={5}
+        nodeDragThreshold={8}
         deleteKeyCode={null}
-        minZoom={0.2}
-        maxZoom={2}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         proOptions={{ hideAttribution: true }}
       >
         <Controls showInteractive={false} />

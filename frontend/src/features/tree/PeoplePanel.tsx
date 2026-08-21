@@ -9,6 +9,7 @@ interface PeoplePanelProps {
   groups: TreePersonGroup[];
   centeredId: string;
   onSelect: (personId: string) => void;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -16,7 +17,7 @@ interface PeoplePanelProps {
 // list of everyone in the tree. Filtering is client-side over the already
 // loaded /api/tree/ data, so it responds on every keystroke without a request,
 // and picking someone re-centres the chart on them.
-export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: PeoplePanelProps) {
+export function PeoplePanel({ groups, centeredId, onSelect, onClose, className = '' }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
   const visibleGroups = useMemo(() => filterTreePeople(groups, query), [groups, query]);
   const total = countPeople(groups);
@@ -58,11 +59,21 @@ export function PeoplePanel({ groups, centeredId, onSelect, className = '' }: Pe
     <aside
       className={`flex-col gap-3 w-full md:w-72 shrink-0 border border-border rounded-lg bg-surface p-3 min-h-0 ${className}`}
     >
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">Люди</h2>
         <span className="text-xs text-text-muted">
           {query.trim() ? `${shown} из ${total}` : total}
         </span>
+        {onClose && (
+          <button
+            type="button"
+            className="people-panel-close md:hidden btn-ghost text-sm"
+            aria-label="Закрыть список людей"
+            onClick={onClose}
+          >
+            Закрыть
+          </button>
+        )}
       </div>
 
       <input

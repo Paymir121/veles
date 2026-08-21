@@ -86,6 +86,11 @@ class PersonSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+    spouses = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        write_only=True,
+        required=False,
+    )
     force_children_reassign = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
@@ -112,6 +117,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "extra_info",
             "notes",
             "children",
+            "spouses",
             "force_children_reassign",
             "linked_user",
             "created_by",
@@ -136,6 +142,7 @@ class PersonSerializer(serializers.ModelSerializer):
                 )
 
         attrs = self._validate_children(attrs)
+        attrs = self._validate_spouses(attrs)
 
         merged = _build_merged_instance(Person, self.instance, attrs)
         try:
@@ -205,6 +212,30 @@ class PersonSerializer(serializers.ModelSerializer):
         attrs["_children_parent_field"] = target_field
         return attrs
 
+    def _validate_spouses(self, attrs):
+        spouse_ids = attrs.get("spouses")
+        if spouse_ids is None:
+            return attrs
+
+        unique_ids = list(dict.fromkeys(spouse_ids))
+        attrs["spouses"] = unique_ids
+
+        if self.instance is not None and self.instance.pk in unique_ids:
+            raise serializers.ValidationError(
+                {"spouses": "A person cannot be married to themselves."}
+            )
+
+        spouses = list(Person.objects.filter(pk__in=unique_ids).order_by("pk"))
+        found_ids = {spouse.pk for spouse in spouses}
+        missing = [spouse_id for spouse_id in unique_ids if spouse_id not in found_ids]
+        if missing:
+            raise serializers.ValidationError(
+                {"spouses": f"Unknown spouse ids: {', '.join(str(spouse_id) for spouse_id in missing)}"}
+            )
+
+        attrs["_resolved_spouses"] = spouses
+        return attrs
+
     def _save_children(self, person, validated_data):
         children = validated_data.pop("_resolved_children", None)
         target_field = validated_data.pop("_children_parent_field", None)
@@ -231,6 +262,30 @@ class PersonSerializer(serializers.ModelSerializer):
             child.full_clean()
             child.save(update_fields=[target_field])
 
+    def _save_spouses(self, person, validated_data):
+        spouses = validated_data.pop("_resolved_spouses", None)
+        if spouses is None:
+            return
+
+        wanted_ids = {spouse.pk for spouse in spouses}
+        existing = Union.objects.filter(Q(person1=person) | Q(person2=person))
+        existing_partners: dict[int, list[Union]] = {}
+        for union in existing:
+            other_id = union.person2_id if union.person1_id == person.pk else union.person1_id
+            existing_partners.setdefault(other_id, []).append(union)
+
+        for other_id, unions in existing_partners.items():
+            if other_id not in wanted_ids:
+                for union in unions:
+                    union.delete()
+
+        for spouse in spouses:
+            if spouse.pk in existing_partners:
+                continue
+            union = Union(person1=person, person2=spouse)
+            union.full_clean()
+            union.save()
+
     def _normalize_linked_user(self, person, validated_data):
         linked_user = validated_data.get("linked_user", serializers.empty)
         if linked_user in (serializers.empty, None):
@@ -240,8 +295,10 @@ class PersonSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         validated_data.pop("children", None)
+        validated_data.pop("spouses", None)
         children = validated_data.pop("_resolved_children", None)
         target_field = validated_data.pop("_children_parent_field", None)
+        spouses = validated_data.pop("_resolved_spouses", None)
         validated_data.pop("force_children_reassign", None)
         linked_user = validated_data.get("linked_user", serializers.empty)
         if linked_user not in (serializers.empty, None):
@@ -250,14 +307,19 @@ class PersonSerializer(serializers.ModelSerializer):
         if children is not None and target_field is not None:
             validated_data["_resolved_children"] = children
             validated_data["_children_parent_field"] = target_field
+        if spouses is not None:
+            validated_data["_resolved_spouses"] = spouses
         self._save_children(person, validated_data)
+        self._save_spouses(person, validated_data)
         return person
 
     @transaction.atomic
     def update(self, instance, validated_data):
         validated_data.pop("children", None)
+        validated_data.pop("spouses", None)
         children = validated_data.pop("_resolved_children", None)
         target_field = validated_data.pop("_children_parent_field", None)
+        spouses = validated_data.pop("_resolved_spouses", None)
         validated_data.pop("force_children_reassign", None)
         linked_user = validated_data.get("linked_user", serializers.empty)
         if linked_user not in (serializers.empty, None):
@@ -266,7 +328,10 @@ class PersonSerializer(serializers.ModelSerializer):
         if children is not None and target_field is not None:
             validated_data["_resolved_children"] = children
             validated_data["_children_parent_field"] = target_field
+        if spouses is not None:
+            validated_data["_resolved_spouses"] = spouses
         self._save_children(person, validated_data)
+        self._save_spouses(person, validated_data)
         return person
 
 
@@ -278,6 +343,7 @@ class PersonRelationSerializer(PersonListSerializer):
 class PersonDetailSerializer(PersonSerializer):
     children = serializers.SerializerMethodField()
     siblings = serializers.SerializerMethodField()
+    spouses = serializers.SerializerMethodField()
 
     class Meta(PersonSerializer.Meta):
         fields = PersonSerializer.Meta.fields + ["siblings"]
@@ -289,6 +355,25 @@ class PersonDetailSerializer(PersonSerializer):
             .distinct()
         )
         return PersonRelationSerializer(queryset, many=True, context=self.context).data
+
+    def get_spouses(self, obj):
+        partner_ids = []
+        seen = set()
+        unions = Union.objects.filter(Q(person1=obj) | Q(person2=obj)).order_by("pk")
+        for union in unions:
+            other_id = union.person2_id if union.person1_id == obj.pk else union.person1_id
+            if other_id in seen:
+                continue
+            seen.add(other_id)
+            partner_ids.append(other_id)
+        if not partner_ids:
+            return []
+        by_id = {
+            person.pk: person
+            for person in Person.objects.filter(pk__in=partner_ids)
+        }
+        ordered = [by_id[partner_id] for partner_id in partner_ids if partner_id in by_id]
+        return PersonRelationSerializer(ordered, many=True, context=self.context).data
 
     def get_siblings(self, obj):
         filters = Q()

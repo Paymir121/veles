@@ -8,6 +8,7 @@ import {
   yandexMapsQuery,
 } from '@/shared/maps/yandexMapsSetup';
 import { escapeHtml } from '@/shared/utils/escapeHtml';
+import { formatDisplayDate } from '@/shared/utils/formatDate';
 import { useBurialPlace, useDeletePerson, usePerson } from './hooks';
 
 const GENDER_LABELS: Record<string, string> = {
@@ -59,8 +60,8 @@ export function PersonDetailPage() {
               </Link>
               {(relative.birth_date || relative.death_date) && (
                 <span className="text-text-muted ml-2 text-xs">
-                  {relative.birth_date || '?'}
-                  {relative.death_date ? ` — ${relative.death_date}` : ''}
+                  {formatDisplayDate(relative.birth_date) || relative.birth_date || '?'}
+                  {relative.death_date ? ` — ${formatDisplayDate(relative.death_date) || relative.death_date}` : ''}
                 </span>
               )}
             </li>
@@ -129,7 +130,7 @@ export function PersonDetailPage() {
           )}
 
           <dt className="text-text-muted font-medium">Дата рождения</dt>
-          <dd>{person.birth_date || person.birth_date_text || '—'}</dd>
+          <dd>{formatDisplayDate(person.birth_date) || person.birth_date_text || '—'}</dd>
 
           {person.birth_place && (
             <>
@@ -141,7 +142,7 @@ export function PersonDetailPage() {
           {person.status === 'deceased' && (
             <>
               <dt className="text-text-muted font-medium">Дата смерти</dt>
-              <dd>{person.death_date || person.death_date_text || '—'}</dd>
+              <dd>{formatDisplayDate(person.death_date) || person.death_date_text || '—'}</dd>
 
               <dt className="text-text-muted font-medium">Место захоронения</dt>
               <dd>
@@ -186,6 +187,8 @@ export function PersonDetailPage() {
           </dd>
         </dl>
       </div>
+
+      {renderRelationList('Супруг(а)', person.spouses ?? [])}
 
       {renderRelationList('Дети', person.children)}
 

@@ -44,5 +44,17 @@ describe('PeoplePanel collapses groups by default', () => {
     expect(screen.queryByRole('button', { name: 'Человек А' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Человек B' })).not.toBeInTheDocument();
   });
+
+  it('shows a close control when onClose is provided', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+
+    render(
+      <PeoplePanel groups={makeGroups()} centeredId="p1" onSelect={vi.fn()} onClose={onClose} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Закрыть список людей' }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });
 

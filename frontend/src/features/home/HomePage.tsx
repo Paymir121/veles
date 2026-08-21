@@ -36,21 +36,18 @@ export function HomePage() {
             <Link to="/map" className="text-accent-secondary underline underline-offset-2">
               карту захоронений
             </Link>
+            {' '}— смотреть можно без входа
           </li>
           <li>
-            Чтобы добавить человека, войдите в аккаунт, нажмите на карточку
-            родственника и выберите связь:{' '}
-            <strong className="text-text">+ Отец</strong>,{' '}
-            <strong className="text-text">+ Мать</strong>,{' '}
-            <strong className="text-text">+ Супруг(а)</strong> или{' '}
-            <strong className="text-text">+ Ребёнок</strong>
+            Чтобы добавить человека, войдите и нажмите{' '}
+            <strong className="text-text">Добавить человека</strong>
+            {' '}в меню (или кнопку в пустом дереве)
           </li>
-          <li>Заполните имя и фамилию (даты, фото и заметки — по желанию) и сохраните</li>
+          <li>
+            Заполните фамилию и имя. Родителей, супруга и детей можно выбрать
+            из уже записанных или создать прямо в форме
+          </li>
         </ol>
-        <p className="text-sm text-text-muted mt-3">
-          Если дерево пустое — на странице дерева нажмите{' '}
-          <strong className="text-text">Добавить первого человека</strong>.
-        </p>
       </section>
 
       <section className="text-center py-8 px-6 bg-bg-muted rounded-2xl">

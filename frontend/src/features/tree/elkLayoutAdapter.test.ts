@@ -55,6 +55,15 @@ describe('layoutTree', () => {
     expect(nodes[0].data).toMatchObject({ lifespan: '1950 – 2020' });
   });
 
+  it('keeps the real gender, including unknown', () => {
+    const tree = [
+      makeNode('a', { gender: 'F', gender_actual: 'F' }),
+      makeNode('b', { gender: 'M', gender_actual: 'U' }, {}, { x: 2, y: 0 }),
+    ];
+    const { nodes } = layoutTree(tree);
+    expect(nodes.map((node) => node.data.kind === 'person' && node.data.gender)).toEqual(['F', 'U']);
+  });
+
   it('creates separate family connectors for half-siblings with different fathers', () => {
     const tree = [
       makeNode('father-a', { first_name: 'Андрей' }, { children: ['child-a'] }, { x: 0, y: 2 }),

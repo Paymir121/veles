@@ -16,6 +16,11 @@ vi.mock('./hooks', () => ({
     isPending: false,
     isError: false,
   })),
+  useCreatePerson: vi.fn(() => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+  })),
 }));
 
 vi.mock('@/shared/maps/yandexMapsSetup', async (importOriginal) => {
@@ -204,5 +209,22 @@ describe('PersonForm - a new burial place is saved together with the person', ()
 
     expect(await screen.findByText(/Не удалось сохранить место захоронения/i)).toBeInTheDocument();
     expect(handleSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('PersonForm - family step', () => {
+  it('lets the user pick parents, a spouse and children', async () => {
+    const user = userEvent.setup();
+    render(<PersonForm onSubmit={vi.fn()} />);
+
+    await goToStep(user, 'Семья');
+    expect(screen.getByRole('heading', { name: 'Семья' })).toBeInTheDocument();
+    expect(screen.getByText('Отец')).toBeInTheDocument();
+    expect(screen.getByText('Мать')).toBeInTheDocument();
+    expect(screen.getByText('Супруг(а)')).toBeInTheDocument();
+    expect(screen.getByText('Дети')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Выбрать' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: '+ Добавить супруга' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Добавить ребёнка' })).toBeInTheDocument();
   });
 });

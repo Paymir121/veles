@@ -1,4 +1,4 @@
-import type { ExtraInfoItem, Gender, PersonStatus } from '@/shared/types';
+import type { ExtraInfoItem, Gender, Person, PersonStatus } from '@/shared/types';
 
 // Editable subset of Person - excludes server-managed fields (id, photo URLs,
 // created_by/updated_by, timestamps, linked_user). "" stands in for "no
@@ -19,6 +19,7 @@ export interface PersonFormValues {
   father: number | '';
   mother: number | '';
   children: number[];
+  spouses: number[];
   burial_place: number | '';
   burial_plot_details: string;
   notes: string;
@@ -41,12 +42,38 @@ export const EMPTY_PERSON_FORM_VALUES: PersonFormValues = {
   father: '',
   mother: '',
   children: [],
+  spouses: [],
   burial_place: '',
   burial_plot_details: '',
   notes: '',
   extra_info: [],
   force_children_reassign: false,
 };
+
+export function personToFormValues(person: Person): PersonFormValues {
+  return {
+    first_name: person.first_name,
+    last_name: person.last_name,
+    patronymic: person.patronymic,
+    maiden_name: person.maiden_name,
+    gender: person.gender,
+    birth_date: person.birth_date ?? '',
+    birth_date_text: person.birth_date_text,
+    birth_place: person.birth_place,
+    status: person.status,
+    death_date: person.death_date ?? '',
+    death_date_text: person.death_date_text,
+    father: person.father ?? '',
+    mother: person.mother ?? '',
+    children: person.children.map((child) => child.id),
+    spouses: (person.spouses ?? []).map((spouse) => spouse.id),
+    burial_place: person.burial_place ?? '',
+    burial_plot_details: person.burial_plot_details,
+    notes: person.notes,
+    extra_info: person.extra_info,
+    force_children_reassign: false,
+  };
+}
 
 export interface BurialPlaceCreatePayload {
   name: string;

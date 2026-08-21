@@ -40,6 +40,7 @@ export interface Person {
   notes: string;
   children: PersonSummary[];
   siblings: PersonSummary[];
+  spouses: PersonSummary[];
   linked_user: number | null;
   created_by: number | null;
   updated_by: number | null;

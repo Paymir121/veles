@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { SearchBar } from '@/features/search/SearchBar';
 import type { SearchSelection } from '@/features/search/types';
 import { formatFullName } from '@/shared/utils/formatName';
@@ -10,10 +11,19 @@ function hasCoordinates(place: BurialPlaceBrief): boolean {
   return Number.isFinite(Number(place.latitude)) && Number.isFinite(Number(place.longitude));
 }
 
+function placeIdFromParam(value: string | null): number | null {
+  if (!value) return null;
+  const placeId = Number(value);
+  return Number.isFinite(placeId) && placeId > 0 ? placeId : null;
+}
+
 export function MapPage() {
+  const [searchParams] = useSearchParams();
   const [focus, setFocus] = useState<MapFocusRequest | null>(null);
   const [notice, setNotice] = useState('');
   const tokenRef = useRef(0);
+  const urlPlaceId = placeIdFromParam(searchParams.get('place'));
+  const activeFocus = focus ?? (urlPlaceId ? { placeId: urlPlaceId, token: 0 } : null);
 
   function focusPlace(placeId: number) {
     tokenRef.current += 1;
@@ -67,7 +77,7 @@ export function MapPage() {
       )}
 
       <div className="map-view-container relative">
-        <MapView focus={focus} />
+        <MapView focus={activeFocus} />
       </div>
     </div>
   );

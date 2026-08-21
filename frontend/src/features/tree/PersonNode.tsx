@@ -1,6 +1,5 @@
 import { type MouseEvent } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl } from '@/shared/utils/resolveMediaUrl';
 import type { FamilyNodeData, PersonNodeData } from './elkLayoutAdapter';
 
@@ -13,13 +12,18 @@ function cardStatusClass(data: PersonNodeData): string {
   return 'person-node-card--deceased';
 }
 
+function cardGenderClass(data: PersonNodeData): string {
+  if (data.gender === 'F') return 'person-node-card--female';
+  if (data.gender === 'M') return 'person-node-card--male';
+  return '';
+}
+
 function nameInitial(label: string): string {
   const letter = label.trim().charAt(0);
   return letter ? letter.toUpperCase() : '?';
 }
 
 export function PersonNode({ id, data }: PersonNodeProps) {
-  const navigate = useNavigate();
   if (!data || data.kind !== 'person') return null;
 
   const showPhoto = Boolean(data.showPhotos);
@@ -28,7 +32,7 @@ export function PersonNode({ id, data }: PersonNodeProps) {
   function handleEdit(event: MouseEvent) {
     event.stopPropagation();
     event.preventDefault();
-    navigate(`/person/${id}/edit`);
+    data.onEdit?.(id);
   }
 
   return (
@@ -36,7 +40,9 @@ export function PersonNode({ id, data }: PersonNodeProps) {
       <Handle id="bottom-left" type="target" position={Position.Bottom} className="!invisible !left-[28%]" />
       <Handle id="bottom-center" type="target" position={Position.Bottom} className="!invisible !left-1/2" />
       <Handle id="bottom-right" type="target" position={Position.Bottom} className="!invisible !left-[72%]" />
-      <div className={`person-node-card ${cardStatusClass(data)}${showPhoto ? ' person-node-card--photo-mode' : ''}`}>
+      <div
+        className={`person-node-card ${cardStatusClass(data)} ${cardGenderClass(data)}${showPhoto ? ' person-node-card--photo-mode' : ''}${data.selected ? ' person-node-card--selected' : ''}`}
+      >
         {showPhoto && (
           <div className={`person-node-photo-wrap${photoSrc ? ' person-node-photo-wrap--filled' : ''}`}>
             {photoSrc ? (
@@ -54,9 +60,10 @@ export function PersonNode({ id, data }: PersonNodeProps) {
           </div>
         )}
         <div className="person-node-body">
-          <div className="person-node-name">{data.label}</div>
+          <div className="person-node-name" title={data.label}>{data.label}</div>
           {data.lifespan ? <div className="person-node-years">{data.lifespan}</div> : null}
         </div>
+        {data.showEdit && (
         <button
           type="button"
           className="person-node-edit nodrag nopan"
@@ -69,6 +76,7 @@ export function PersonNode({ id, data }: PersonNodeProps) {
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
           </svg>
         </button>
+        )}
       </div>
       <Handle id="top-left" type="source" position={Position.Top} className="!invisible !left-[30%]" />
       <Handle id="top-center" type="source" position={Position.Top} className="!invisible !left-1/2" />

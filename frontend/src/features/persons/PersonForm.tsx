@@ -25,6 +25,7 @@ import {
   useAllBurialPlaces,
   useBurialPlace,
   useCreateBurialPlace,
+  useCreatePerson,
   usePerson,
   usePersons,
 } from './hooks';
@@ -36,6 +37,7 @@ import {
   type PersonFormValues,
 } from './types';
 import type { PersonSubmitFiles } from './api';
+import { formatDisplayDate, parseDateInput } from '@/shared/utils/formatDate';
 
 const SHORT_TEXT_MAX_LENGTH = 300;
 
@@ -53,7 +55,7 @@ type WizardStep = 'basics' | 'parents' | 'burial' | 'extras';
 
 const STEP_LABELS: Record<WizardStep, string> = {
   basics: 'Основное',
-  parents: 'Родители',
+  parents: 'Семья',
   burial: 'Захоронение',
   extras: 'Фото и доп.',
 };
@@ -306,6 +308,12 @@ function DateFieldInput({
   onChange: (value: string) => void;
 }) {
   const pickerRef = useRef<HTMLInputElement>(null);
+  const [text, setText] = useState(() => formatDisplayDate(value));
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setText(formatDisplayDate(value));
+  }
 
   return (
     <label className="field-label">
@@ -313,10 +321,15 @@ function DateFieldInput({
       <div className="date-input-row">
         <input
           className="input"
-          value={value}
+          value={text}
           inputMode="numeric"
-          placeholder="ГГГГ-ММ-ДД"
-          onChange={(e) => onChange(e.target.value)}
+          placeholder="ДД.ММ.ГГГГ"
+          onChange={(e) => {
+            const next = e.target.value;
+            setText(next);
+            const parsed = parseDateInput(next);
+            if (parsed !== null) onChange(parsed);
+          }}
         />
         <button
           type="button"
@@ -507,13 +520,17 @@ function StepBasics({
 function StepParents({ values, setField, excludePersonId }: StepProps & { excludePersonId?: number }) {
   return (
     <div className="card space-y-5">
-      <h2 className="text-lg font-semibold">Родители и дети</h2>
+      <h2 className="text-lg font-semibold">Семья</h2>
+      <p className="text-sm text-text-muted -mt-2">
+        Можно выбрать уже записанного человека или создать нового прямо здесь.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PersonPickerField
           label="Отец"
           value={values.father}
           excludeId={excludePersonId}
           genderFilter="M"
+          lastNameHint={values.last_name}
           onChange={(id) => setField('father', id)}
         />
         <PersonPickerField
@@ -521,13 +538,24 @@ function StepParents({ values, setField, excludePersonId }: StepProps & { exclud
           value={values.mother}
           excludeId={excludePersonId}
           genderFilter="F"
+          lastNameHint={values.last_name}
           onChange={(id) => setField('mother', id)}
         />
       </div>
       <MultiPersonPickerField
+        label="Супруг(а)"
+        addLabel="+ Добавить супруга"
+        values={values.spouses}
+        excludeId={excludePersonId}
+        lastNameHint={values.last_name}
+        onChange={(ids) => setField('spouses', ids)}
+      />
+      <MultiPersonPickerField
         label="Дети"
+        addLabel="+ Добавить ребёнка"
         values={values.children}
         excludeId={excludePersonId}
+        lastNameHint={values.last_name}
         onChange={(ids) => setField('children', ids)}
       />
     </div>
@@ -626,10 +654,18 @@ interface PersonPickerFieldProps {
   value: number | '';
   excludeId?: number;
   genderFilter?: 'M' | 'F';
+  lastNameHint?: string;
   onChange: (id: number | '') => void;
 }
 
-function PersonPickerField({ label, value, excludeId, genderFilter, onChange }: PersonPickerFieldProps) {
+function PersonPickerField({
+  label,
+  value,
+  excludeId,
+  genderFilter,
+  lastNameHint,
+  onChange,
+}: PersonPickerFieldProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const hasValue = typeof value === 'number';
   const { data: selected, isLoading } = usePerson(hasValue ? value : undefined);
@@ -658,7 +694,7 @@ function PersonPickerField({ label, value, excludeId, genderFilter, onChange }: 
           className="btn btn-secondary text-sm mt-1"
           onClick={() => setIsSearchOpen(true)}
         >
-          + Добавить
+          Выбрать
         </button>
       )}
       {isSearchOpen && (
@@ -666,6 +702,7 @@ function PersonPickerField({ label, value, excludeId, genderFilter, onChange }: 
           title={`Выбрать: ${label}`}
           genderFilter={genderFilter}
           excludeId={excludeId}
+          lastNameHint={lastNameHint}
           onSelect={(id) => {
             onChange(id);
             setIsSearchOpen(false);
@@ -718,13 +755,17 @@ function SelectedPersonRow({
 
 function MultiPersonPickerField({
   label,
+  addLabel,
   values,
   excludeId,
+  lastNameHint,
   onChange,
 }: {
   label: string;
+  addLabel: string;
   values: number[];
   excludeId?: number;
+  lastNameHint?: string;
   onChange: (ids: number[]) => void;
 }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -750,12 +791,13 @@ function MultiPersonPickerField({
         className="btn btn-secondary text-sm mt-1 self-start"
         onClick={() => setIsSearchOpen(true)}
       >
-        + Добавить ребёнка
+        {addLabel}
       </button>
       {isSearchOpen && (
         <PersonSearchDialog
           title={`Выбрать: ${label}`}
           excludeId={excludeId}
+          lastNameHint={lastNameHint}
           onSelect={(id) => {
             onChange(values.includes(id) ? values : [...values, id]);
             setIsSearchOpen(false);
@@ -771,13 +813,28 @@ interface PersonSearchDialogProps {
   title: string;
   genderFilter?: 'M' | 'F';
   excludeId?: number;
+  lastNameHint?: string;
   onSelect: (id: number) => void;
   onClose: () => void;
 }
 
-function PersonSearchDialog({ title, genderFilter, excludeId, onSelect, onClose }: PersonSearchDialogProps) {
+function PersonSearchDialog({
+  title,
+  genderFilter,
+  excludeId,
+  lastNameHint,
+  onSelect,
+  onClose,
+}: PersonSearchDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [draftLastName, setDraftLastName] = useState(lastNameHint ?? '');
+  const [draftFirstName, setDraftFirstName] = useState('');
+  const [draftPatronymic, setDraftPatronymic] = useState('');
+  const [draftGender, setDraftGender] = useState<Gender>(genderFilter ?? 'U');
+  const createPerson = useCreatePerson();
   const debouncedQuery = useDebouncedValue(query, 300);
   const hasQuery = debouncedQuery.trim().length > 0;
   const { data: results = [], isLoading } = usePersons(
@@ -798,6 +855,29 @@ function PersonSearchDialog({ title, genderFilter, excludeId, onSelect, onClose 
     };
   }, [onClose]);
 
+  async function handleCreate() {
+    if (!draftLastName.trim() || !draftFirstName.trim()) {
+      setCreateError('Заполните фамилию и имя.');
+      return;
+    }
+    setCreateError('');
+    try {
+      const created = await createPerson.mutateAsync({
+        values: {
+          ...EMPTY_PERSON_FORM_VALUES,
+          last_name: draftLastName.trim(),
+          first_name: draftFirstName.trim(),
+          patronymic: draftPatronymic.trim(),
+          gender: draftGender,
+        },
+        files: { photo: null, gravePhoto: null },
+      });
+      onSelect(created.id);
+    } catch {
+      setCreateError('Не удалось создать человека. Попробуйте ещё раз.');
+    }
+  }
+
   return (
     <dialog ref={dialogRef} className="person-search-dialog">
       <div className="flex flex-col bg-bg rounded-xl shadow-xl max-w-md w-full mx-auto max-h-[80vh]">
@@ -815,30 +895,97 @@ function PersonSearchDialog({ title, genderFilter, excludeId, onSelect, onClose 
           />
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          {!debouncedQuery.trim() && (
-            <p className="text-sm text-text-muted">Введите имя или фамилию для поиска</p>
+          {!isCreating && (
+            <>
+              {!debouncedQuery.trim() && (
+                <p className="text-sm text-text-muted">Введите имя или фамилию для поиска</p>
+              )}
+              {debouncedQuery.trim() && isLoading && (
+                <p className="text-sm text-text-muted">Поиск...</p>
+              )}
+              {debouncedQuery.trim() && !isLoading && options.length === 0 && (
+                <p className="text-sm text-text-muted">Никого не найдено</p>
+              )}
+              {options.length > 0 && (
+                <ul className="picker-results">
+                  {options.map((person) => (
+                    <li key={person.id}>
+                      <button type="button" onClick={() => onSelect(person.id)}>
+                        {person.last_name} {person.first_name} {person.patronymic}
+                        {person.birth_date && (
+                          <span className="text-text-muted text-xs ml-2">
+                            {formatDisplayDate(person.birth_date)}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                className="btn-ghost text-sm text-accent mt-2"
+                onClick={() => setIsCreating(true)}
+              >
+                Нет в списке? Создать нового
+              </button>
+            </>
           )}
-          {debouncedQuery.trim() && isLoading && (
-            <p className="text-sm text-text-muted">Поиск...</p>
-          )}
-          {debouncedQuery.trim() && !isLoading && options.length === 0 && (
-            <p className="text-sm text-text-muted">Никого не найдено</p>
-          )}
-          {options.length > 0 && (
-            <ul className="picker-results">
-              {options.map((person) => (
-                <li key={person.id}>
-                  <button type="button" onClick={() => onSelect(person.id)}>
-                    {person.last_name} {person.first_name} {person.patronymic}
-                    {person.birth_date && (
-                      <span className="text-text-muted text-xs ml-2">
-                        {person.birth_date}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {isCreating && (
+            <div className="space-y-3">
+              <label className="field-label">
+                Фамилия *
+                <input
+                  className="input"
+                  value={draftLastName}
+                  onChange={(e) => setDraftLastName(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Имя *
+                <input
+                  className="input"
+                  value={draftFirstName}
+                  onChange={(e) => setDraftFirstName(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Отчество
+                <input
+                  className="input"
+                  value={draftPatronymic}
+                  onChange={(e) => setDraftPatronymic(e.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Пол
+                <select
+                  className="input"
+                  value={draftGender}
+                  onChange={(e) => setDraftGender(e.target.value as Gender)}
+                >
+                  <option value="U">Не указан</option>
+                  <option value="M">Мужской</option>
+                  <option value="F">Женский</option>
+                </select>
+              </label>
+              {createError && (
+                <div className="rounded-lg bg-error/10 text-error text-sm px-3 py-2">{createError}</div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn text-sm"
+                  disabled={createPerson.isPending}
+                  onClick={() => void handleCreate()}
+                >
+                  {createPerson.isPending ? 'Создание...' : 'Создать и выбрать'}
+                </button>
+                <button type="button" className="btn-ghost text-sm" onClick={() => setIsCreating(false)}>
+                  К поиску
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

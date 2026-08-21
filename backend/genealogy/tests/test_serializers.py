@@ -1,8 +1,9 @@
 import pytest
+from django.db.models import Q
 from rest_framework.test import APIRequestFactory
 
 from accounts.models import User
-from genealogy.models import Person
+from genealogy.models import Person, Union
 from genealogy.serializers import PersonDetailSerializer, PersonSerializer, UnionSerializer
 
 pytestmark = pytest.mark.django_db
@@ -112,6 +113,11 @@ def test_person_detail_serializer_includes_children_and_siblings():
 
     serialized_child = PersonDetailSerializer(child).data
     assert [person["id"] for person in serialized_child["siblings"]] == [sibling.pk]
+    assert serialized_child["spouses"] == []
+
+    Union.objects.create(person1=father, person2=mother)
+    serialized_father = PersonDetailSerializer(father).data
+    assert [person["id"] for person in serialized_father["spouses"]] == [mother.pk]
 
 
 def test_person_serializer_rejects_children_conflict_without_force(user):
@@ -154,6 +160,43 @@ def test_person_serializer_reassigns_children_with_force(user):
     serializer.save(updated_by=user)
     child.refresh_from_db()
     assert child.father_id == new_father.pk
+
+
+def test_person_serializer_creates_and_clears_spouses(user):
+    person = Person.objects.create(first_name="Ivan", last_name="Ivanov", status="alive", gender="M")
+    partner = Person.objects.create(first_name="Maria", last_name="Ivanova", status="alive", gender="F")
+
+    serializer = PersonSerializer(
+        person,
+        data={"spouses": [partner.pk]},
+        partial=True,
+        context={"request": _request_for(user)},
+    )
+    assert serializer.is_valid(), serializer.errors
+    serializer.save(updated_by=user)
+    assert Union.objects.filter(person1=person, person2=partner).exists()
+
+    serializer = PersonSerializer(
+        person,
+        data={"spouses": []},
+        partial=True,
+        context={"request": _request_for(user)},
+    )
+    assert serializer.is_valid(), serializer.errors
+    serializer.save(updated_by=user)
+    assert not Union.objects.filter(Q(person1=person) | Q(person2=person)).exists()
+
+
+def test_person_serializer_rejects_self_as_spouse(user):
+    person = Person.objects.create(first_name="Ivan", last_name="Ivanov", status="alive")
+    serializer = PersonSerializer(
+        person,
+        data={"spouses": [person.pk]},
+        partial=True,
+        context={"request": _request_for(user)},
+    )
+    assert not serializer.is_valid()
+    assert "spouses" in serializer.errors
 
 
 # --- UnionSerializer: clean() wiring ----------------------------------------

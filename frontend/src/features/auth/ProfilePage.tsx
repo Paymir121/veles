@@ -70,7 +70,7 @@ export function ProfilePage() {
 
   function handleLogout() {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/tree', { replace: true });
   }
 
   async function refreshCurrentUser(successText: string) {

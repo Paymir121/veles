@@ -18,7 +18,7 @@ export function NavBar() {
 
   function handleLogout() {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/tree', { replace: true });
   }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
